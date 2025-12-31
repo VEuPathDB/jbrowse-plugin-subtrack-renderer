@@ -152,6 +152,7 @@ export function makeImageData({
       label,
       description,
       subtrackLabel,
+      floatingLabels,
     } = record
 
     // Apply subtrack yOffset during rendering (not during layout)
@@ -185,12 +186,19 @@ export function makeImageData({
     // Draw the feature (all coordinates are now in canvas space)
     drawFeature(ctx, canvasLayout, drawContext, pluginManager)
 
-    // Build hit detection indexes
+    // Calculate floating labels height for hit detection bounds
+    let floatingLabelsHeight = 0
+    if (floatingLabels && floatingLabels.length > 0) {
+      const maxRelativeY = Math.max(...floatingLabels.map(l => l.relativeY))
+      floatingLabelsHeight = maxRelativeY + 11 // 11px font height (matches rendering)
+    }
+
+    // Build hit detection indexes - extend bounds to include floating labels
     const bounds = {
       left: canvasLayout.x,
       right: canvasLayout.x + canvasLayout.totalLayoutWidth,
       top: canvasLayout.y,
-      bottom: canvasLayout.y + canvasLayout.totalLayoutHeight,
+      bottom: canvasLayout.y + canvasLayout.totalLayoutHeight + floatingLabelsHeight,
     }
 
     const tooltip = String(
@@ -228,6 +236,39 @@ export function makeImageData({
 
     checkStopToken2(lastCheck)
   }
+
+  // Draw floating labels for features
+  ctx.save()
+  ctx.font = '11px sans-serif' // Match FLOATING_LABEL_FONT_SIZE
+  for (const { floatingLabels, layout: featureLayoutData, topPx, subtrackLabel, feature } of layoutRecords) {
+    if (!floatingLabels || floatingLabels.length === 0) {
+      continue
+    }
+
+    // Calculate yOffset for this feature's subtrack
+    const yOffset = subtrackLabel && subtrackPositions
+      ? (subtrackPositions.get(subtrackLabel)?.yOffset ?? 0)
+      : 0
+
+    // Calculate feature's screen position
+    const featureStart = feature.get('start')
+    const featureLeftPx = (featureStart - region.start) / bpPerPx
+    const featureBottomPx = topPx + featureLayoutData.height + yOffset
+
+    for (const label of floatingLabels) {
+      const { relativeY, color, text } = label
+      if (!text) {
+        continue
+      }
+
+      // Position label at feature's left edge, offset from bottom by relativeY
+      const labelY = featureBottomPx + relativeY + 11 // +11 for font height
+
+      ctx.fillStyle = color || theme.palette.text.primary
+      ctx.fillText(text, featureLeftPx, labelY)
+    }
+  }
+  ctx.restore()
 
   // Draw subtrack labels and dividers if enabled
   if (

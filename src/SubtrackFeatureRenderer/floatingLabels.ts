@@ -47,8 +47,16 @@ export function createFeatureFloatingLabels({
   const name = truncateLabel(rawName)
   const description = truncateLabel(rawDescription)
 
-  const shouldShowLabel = /\S/.test(name) && showLabels
-  const shouldShowDescription = /\S/.test(description) && showDescriptions
+  // Filter out meaningless labels (single chars, pure numbers, etc.)
+  const isMeaningfulLabel = (text: string) => {
+    if (!text || !/\S/.test(text)) return false
+    // Reject single characters or pure numbers (like "1", "0", "123")
+    if (text.length <= 1 || /^\d+$/.test(text)) return false
+    return true
+  }
+
+  const shouldShowLabel = isMeaningfulLabel(name) && showLabels
+  const shouldShowDescription = isMeaningfulLabel(description) && showDescriptions
 
   if (!shouldShowLabel && !shouldShowDescription) {
     return []

@@ -73,6 +73,7 @@ export interface LayoutRecord {
   label: string
   description: string
   subtrackLabel?: string
+  floatingLabels?: any[]
 }
 
 export interface FlatbushItem {

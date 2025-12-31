@@ -67,6 +67,8 @@ export function layoutFeatures({
 
   let filteredCount = 0
   let matchedCount = 0
+  let debugLabeledFeatureCount = 0
+  let debugFeatureCount = 0
 
   // Get or create cache for this refName
   let refNameCache = subtrackHeightCache.get(region.refName)
@@ -78,6 +80,22 @@ export function layoutFeatures({
   // Layout features into sublayouts (all starting at Y=0, will overlap)
   // yOffsets will be applied later during rendering
   for (const feature of features.values()) {
+    // Debug: Log first few features early to see all processing
+    debugFeatureCount++
+    if (debugFeatureCount <= 5) {
+      const rawName = readConfObject(config, ['labels', 'name'], { feature })
+      const rawDescription = readConfObject(config, ['labels', 'description'], { feature })
+      console.log('[SubtrackRenderer] Early feature inspection:', {
+        count: debugFeatureCount,
+        featureId: feature.id(),
+        featureType: feature.get('type'),
+        rawName,
+        rawDescription,
+        nameType: typeof rawName,
+        descriptionType: typeof rawDescription,
+      })
+    }
+
     // If subtracks are enabled, filter features
     let subtrack: Subtrack | null = null
     let subtrackInfo: SubtrackInfo | undefined
@@ -116,24 +134,33 @@ export function layoutFeatures({
       })
     }
 
-    const name = String(
-      readConfObject(config, ['labels', 'name'], { feature }) || '',
-    )
-    const description = String(
-      readConfObject(config, ['labels', 'description'], { feature }) || '',
-    )
+    const rawName = readConfObject(config, ['labels', 'name'], { feature })
+    const rawDescription = readConfObject(config, ['labels', 'description'], { feature })
 
-    // TEMPORARY: Disable floating labels to isolate SVG error
-    const floatingLabels: any[] = []
-    // const floatingLabels = createFeatureFloatingLabels({
-    //   feature,
-    //   config,
-    //   configContext,
-    //   nameColor: 'black',
-    //   descriptionColor: 'blue',
-    //   name,
-    //   description,
-    // })
+    const name = String(rawName || '')
+    const description = String(rawDescription || '')
+
+    // Create floating labels for features
+    const floatingLabels = createFeatureFloatingLabels({
+      feature,
+      config,
+      configContext,
+      nameColor: 'black',
+      descriptionColor: 'blue',
+      name,
+      description,
+    })
+
+    // Debug: Log processed features with labels
+    if (debugFeatureCount <= 5) {
+      console.log('[SubtrackRenderer] Feature after label creation:', {
+        featureId: feature.id(),
+        featureType: feature.get('type'),
+        name,
+        description,
+        floatingLabelsCount: floatingLabels.length,
+      })
+    }
 
     const featureStart = feature.get('start')
     const featureEnd = feature.get('end')
@@ -164,12 +191,35 @@ export function layoutFeatures({
       ? buildLayoutKey(region.refName, subtrack.label)
       : feature.id()
 
+    // Calculate the total height needed including floating labels
+    let floatingLabelsHeight = 0
+    if (floatingLabels.length > 0) {
+      // Find the maximum relativeY + font height + padding for descenders
+      const maxRelativeY = Math.max(...floatingLabels.map(l => l.relativeY))
+      floatingLabelsHeight = maxRelativeY + 15 // 11px font height + 4px descenders/padding
+
+      // Debug: Log first few features with labels
+      if (debugLabeledFeatureCount <= 2) {
+        console.log('[SubtrackRenderer] Floating labels height calculation:', {
+          featureId: feature.id(),
+          numLabels: floatingLabels.length,
+          labelDetails: floatingLabels.map(l => ({ text: l.text, relativeY: l.relativeY })),
+          maxRelativeY,
+          floatingLabelsHeight,
+          totalLayoutHeight,
+          yPadding,
+          totalRectHeight: totalLayoutHeight + yPadding + floatingLabelsHeight,
+        })
+      }
+    }
+
     // Ensure height is valid - use fallback if NaN
-    let rectHeight = totalLayoutHeight + yPadding
+    let rectHeight = totalLayoutHeight + yPadding + floatingLabelsHeight
     if (!Number.isFinite(rectHeight)) {
       console.error('[SubtrackRenderer] NaN rectHeight before addRect:', {
         totalLayoutHeight,
         yPadding,
+        floatingLabelsHeight,
         featureId: feature.id(),
         featureType: feature.get('type'),
         featureStart,
@@ -208,6 +258,7 @@ export function layoutFeatures({
         label: name,
         description,
         subtrackLabel: subtrack?.label,
+        floatingLabels,
       })
     }
   }
