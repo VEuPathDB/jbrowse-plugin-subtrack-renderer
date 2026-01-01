@@ -70,7 +70,8 @@ export function getFeatureSubtrack(
   subtracks: Subtrack[],
 ): Subtrack | null {
   for (const subtrack of subtracks) {
-    if (!subtrack.visible) {
+    // Treat undefined as visible (consistent with SubtrackFeatureRenderer)
+    if (subtrack.visible === false) {
       continue
     }
     if (featureMatchesSubtrack(feature, subtrack)) {
@@ -91,7 +92,8 @@ export function calculateSubtrackPositions(
   let currentY = 0
 
   for (const subtrack of subtracks) {
-    if (!subtrack.visible) {
+    // Treat undefined as visible (consistent with SubtrackFeatureRenderer)
+    if (subtrack.visible === false) {
       continue
     }
 

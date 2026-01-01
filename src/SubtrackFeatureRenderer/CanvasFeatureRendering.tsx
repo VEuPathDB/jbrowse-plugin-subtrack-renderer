@@ -177,36 +177,12 @@ const CanvasFeatureRendering = observer(function CanvasFeatureRendering(props: {
 
   const canvasWidth = Math.ceil(width)
 
-  console.log('[CanvasFeatureRendering] Rendering with props:', {
-    propsWidth: props.width,
-    propsHeight: props.height,
-    width,
-    height,
-    canvasWidth,
-    blockKey: props.blockKey,
-    flatbushSize: flatbush.byteLength,
-    itemsCount: items.length,
-    hasImageData: !!imageData,
-    imageDataType: imageData?.constructor?.name,
-    imageDataWidth: (imageData as any)?.width,
-    imageDataHeight: (imageData as any)?.height,
-  })
-
   // Calculate high-DPI scaling factor from ImageBitmap dimensions
   let highResolutionScaling = 1
   if (imageData && typeof (imageData as any).width === 'number') {
     const bitmapWidth = (imageData as any).width
     const bitmapHeight = (imageData as any).height
     highResolutionScaling = Math.round(bitmapWidth / width)
-
-    console.log('[CanvasFeatureRendering] ImageBitmap dimensions:', {
-      bitmapWidth,
-      bitmapHeight,
-      expectedWidth: width,
-      expectedHeight: height,
-      calculatedScaling: highResolutionScaling,
-      devicePixelRatio: window.devicePixelRatio,
-    })
   }
 
   return (
@@ -279,35 +255,16 @@ const CanvasFeatureRendering = observer(function CanvasFeatureRendering(props: {
         displayModel.setMouseoverExtraInformation(extra)
       }}
       onClick={event => {
-        console.log('[CanvasFeatureRendering] Click detected:', {
-          movedDuringLastMouseDown,
-          clientX: event.clientX,
-          clientY: event.clientY,
-        })
         if (!movedDuringLastMouseDown && ref.current) {
           const rect = ref.current.getBoundingClientRect()
           const scrollT = ref.current.scrollTop
           const offsetX = event.clientX - rect.left
           const offsetY = event.clientY - rect.top + scrollT
 
-          console.log('[CanvasFeatureRendering] Click position:', {
-            offsetX,
-            offsetY,
-            rectLeft: rect.left,
-            rectTop: rect.top,
-            rectWidth: rect.width,
-            rectHeight: rect.height,
-          })
-
           const { item, featureId, parentFeatureId } = getFeatureAtPosition(
             offsetX,
             offsetY,
           )
-          console.log('[CanvasFeatureRendering] Hit detection result:', {
-            hasItem: !!item,
-            featureId,
-            parentFeatureId,
-          })
           if (item) {
             // Pass the top-level feature ID for RPC lookup since nested
             // subfeature parents may not be in the layout cache

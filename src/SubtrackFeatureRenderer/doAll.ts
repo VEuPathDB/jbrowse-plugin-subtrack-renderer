@@ -25,13 +25,13 @@ export async function doAll({
   features,
   renderProps,
   pluginManager,
-  subtrackHeightCache,
+  heightStats,
 }: {
   pluginManager: PluginManager
   layout: BaseLayout<unknown>
   features: Map<string, Feature>
   renderProps: RenderArgsDeserialized
-  subtrackHeightCache: Map<string, Map<string, number>>
+  heightStats: Map<string, Map<string, {min: number, max: number}>>
 }) {
   const { statusCallback = () => {}, regions, bpPerPx, config } = renderProps
   const region = regions[0]!
@@ -64,10 +64,63 @@ export async function doAll({
         pluginManager,
         subtracks,
         subtrackConfig,
-        subtrackHeightCache,
       })
     },
   )
+
+  // Calculate yOffsets using MAX heights seen across all renders
+  // This keeps yOffsets stable even as different regions are rendered
+  if (subtrackConfig.enabled && 'subLayouts' in layout) {
+    // Get or create stats for this refName
+    let refStats = heightStats.get(region.refName)
+    if (!refStats) {
+      refStats = new Map()
+      heightStats.set(region.refName, refStats)
+    }
+
+    // First pass: Update min/max stats with current heights
+    for (const subtrack of subtracks) {
+      if (subtrack.visible === false) continue
+
+      const layoutKey = `${region.refName}:${subtrack.label}`
+      const sublayout = (layout as any).subLayouts?.get(layoutKey)
+
+      if (sublayout && typeof sublayout.getTotalHeight === 'function') {
+        const currentHeight = sublayout.getTotalHeight()
+        if (Number.isFinite(currentHeight) && currentHeight > 0) {
+          let stats = refStats.get(subtrack.label)
+          if (!stats) {
+            stats = { min: currentHeight, max: currentHeight }
+            refStats.set(subtrack.label, stats)
+          } else {
+            stats.min = Math.min(stats.min, currentHeight)
+            stats.max = Math.max(stats.max, currentHeight)
+          }
+        }
+      }
+    }
+
+    // Second pass: Calculate yOffsets using MAX heights for consistency
+    let currentY = 0
+    for (const subtrack of subtracks) {
+      if (subtrack.visible === false) continue
+
+      const stats = refStats.get(subtrack.label)
+      // Use MAX height to ensure enough space for tallest regions
+      const heightToUse = stats
+        ? Math.max(stats.max, subtrackConfig.perSubtrackHeight)
+        : subtrackConfig.perSubtrackHeight
+
+      subtrackPositions.set(subtrack.label, {
+        label: subtrack.label,
+        yOffset: currentY,
+        height: heightToUse,
+        visible: true,
+      })
+
+      currentY += heightToUse + subtrackConfig.spacing
+    }
+  }
 
   // Calculate height differently when subtracks are enabled
   let height: number
@@ -79,16 +132,6 @@ export async function doAll({
     )
     // Remove last spacing
     height = totalHeight - subtrackConfig.spacing
-
-    console.log('[SubtrackRenderer] Final track height (subtracks enabled):', {
-      height,
-      totalHeight,
-      subtracks: Array.from(subtrackPositions.entries()).map(([label, info]) => ({
-        label,
-        yOffset: info.yOffset,
-        height: info.height,
-      })),
-    })
   } else {
     // MultiLayout doesn't have getTotalHeight - calculate from sublayouts
     let maxHeight = 0
@@ -104,16 +147,11 @@ export async function doAll({
       }
     }
     height = maxHeight || 100
-    console.log('[SubtrackRenderer] Final track height (subtracks disabled):', {
-      height,
-      maxHeight,
-    })
   }
 
   // Ensure height is a valid positive integer
   height = Math.max(1, Math.round(height))
   if (!Number.isFinite(height)) {
-    console.error('[SubtrackRenderer] Invalid height calculated, using fallback:', height)
     height = 100
   }
 
@@ -125,16 +163,8 @@ export async function doAll({
     },
   )
 
-  console.log('[SubtrackRenderer] About to render with dimensions:', { width, height, layoutRecords: layoutRecords.length })
-
   return updateStatus('Rendering features', statusCallback, async () => {
     const result = await renderToAbstractCanvas(width, height, renderProps, ctx => {
-      console.log('[SubtrackRenderer] Canvas context received:', {
-        canvasWidth: ctx.canvas.width,
-        canvasHeight: ctx.canvas.height,
-        fillStyle: ctx.fillStyle,
-      })
-
       return makeImageData({
         ctx,
         layoutRecords,
@@ -152,13 +182,6 @@ export async function doAll({
         subtrackPositions,
         subtrackConfig,
       })
-    })
-
-    console.log('[SubtrackRenderer] renderToAbstractCanvas returned:', {
-      hasImageData: !!result.imageData,
-      imageDataType: result.imageData?.constructor?.name,
-      width: result.width,
-      height: result.height,
     })
 
     // CRITICAL: renderToAbstractCanvas doesn't return width/height, add them back

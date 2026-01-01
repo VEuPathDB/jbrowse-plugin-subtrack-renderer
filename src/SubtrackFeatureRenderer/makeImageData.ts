@@ -127,23 +127,6 @@ export function makeImageData({
   const { subfeatureLabels, transcriptTypes, config } = configContext
   const lastCheck = createStopTokenChecker(stopToken)
 
-  console.log('[SubtrackRenderer] makeImageData rendering:', {
-    layoutRecordsCount: layoutRecords.length,
-    subtrackPositions: subtrackPositions ? Array.from(subtrackPositions.entries()).map(([label, info]) => ({
-      label,
-      yOffset: info.yOffset,
-      height: info.height,
-    })) : undefined,
-    canvasWidth,
-    canvasHeight: ctx.canvas.height,
-  })
-
-  // Test: Draw a visible red rectangle to verify canvas is working
-  ctx.fillStyle = 'red'
-  ctx.fillRect(10, 10, 100, 50)
-  ctx.fillStyle = 'black'
-  ctx.fillText('TEST CANVAS', 15, 30)
-
   for (const record of layoutRecords) {
     const {
       feature,
@@ -162,13 +145,6 @@ export function makeImageData({
       const subtrackInfo = subtrackPositions.get(subtrackLabel)
       if (subtrackInfo) {
         finalTopPx = recordTopPx + subtrackInfo.yOffset
-        console.log('[SubtrackRenderer] Applying yOffset:', {
-          featureId: feature.id(),
-          subtrackLabel,
-          recordTopPx,
-          yOffset: subtrackInfo.yOffset,
-          finalTopPx,
-        })
       } else {
         console.warn('[SubtrackRenderer] No subtrack info found for:', subtrackLabel)
       }
@@ -277,14 +253,12 @@ export function makeImageData({
     subtrackPositions &&
     subtrackPositions.size > 0
   ) {
-    console.log('[SubtrackRenderer] Drawing subtrack labels:', Array.from(subtrackPositions.entries()))
     ctx.save()
     ctx.font = '12px sans-serif'
     ctx.fillStyle = theme.palette.text.secondary
 
     for (const [, info] of subtrackPositions) {
       // Draw label at left edge
-      console.log('[SubtrackRenderer] Drawing label:', info.label, 'at y:', info.yOffset + 5)
       ctx.fillText(info.label, 5, info.yOffset + 5)
 
       // Draw divider line

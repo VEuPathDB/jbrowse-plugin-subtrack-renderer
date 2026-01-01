@@ -43,7 +43,7 @@ export function layoutFeatures({
   pluginManager: PluginManager
   subtracks?: Subtrack[]
   subtrackConfig?: SubtrackConfig
-  subtrackHeightCache: Map<string, Map<string, number>>
+  subtrackHeightCache?: Map<string, Map<string, number>>
 }): {
   layoutRecords: LayoutRecord[]
   subtrackPositions: Map<string, SubtrackInfo>
@@ -71,10 +71,13 @@ export function layoutFeatures({
   let debugFeatureCount = 0
 
   // Get or create cache for this refName
-  let refNameCache = subtrackHeightCache.get(region.refName)
-  if (!refNameCache) {
-    refNameCache = new Map()
-    subtrackHeightCache.set(region.refName, refNameCache)
+  let refNameCache: Map<string, number> | undefined
+  if (subtrackHeightCache) {
+    refNameCache = subtrackHeightCache.get(region.refName)
+    if (!refNameCache) {
+      refNameCache = new Map()
+      subtrackHeightCache.set(region.refName, refNameCache)
+    }
   }
 
   // Layout features into sublayouts (all starting at Y=0, will overlap)
