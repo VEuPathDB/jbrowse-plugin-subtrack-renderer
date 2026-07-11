@@ -1,6 +1,7 @@
 import PluginManager from '@jbrowse/core/PluginManager'
 import { renderToAbstractCanvas } from '@jbrowse/core/util'
 import GranularRectLayout from '@jbrowse/core/util/layouts/GranularRectLayout'
+import { MultiLayout } from '@jbrowse/core/util/layouts'
 import SimpleFeature from '@jbrowse/core/util/simpleFeature'
 import { Image, createCanvas } from 'canvas'
 import { toMatchImageSnapshot } from 'jest-image-snapshot'
@@ -61,7 +62,11 @@ function createRenderArgs(
 ) {
   const config = configSchema.create(configOverrides, { pluginManager })
   const bpPerPx = 1
-  const layout = new GranularRectLayout<LayoutSerializableData>({
+  // must be a MultiLayout, not a bare GranularRectLayout: SubtrackFeatureRenderer
+  // always lays features into a MultiLayout (one sublayout per subtrack lane, or
+  // one per refName when subtracks are off), and MultiLayout.addRect takes a
+  // leading layoutName argument that a GranularRectLayout does not.
+  const layout = new MultiLayout(GranularRectLayout, {
     pitchX: 1,
     pitchY: 1,
   })
@@ -79,6 +84,8 @@ function createRenderArgs(
   }
 }
 
+// layoutFeatures now returns { layoutRecords, subtrackPositions }; these tests
+// only care about the records.
 function doLayout(
   args: ReturnType<typeof createRenderArgs>,
   features: Map<string, SimpleFeature>,
@@ -90,13 +97,13 @@ function doLayout(
     configContext: args.configContext,
     layout: args.layout,
     pluginManager,
-  })
+  }).layoutRecords
 }
 
 async function renderAndGetResult(
   args: ReturnType<typeof createRenderArgs>,
   features: Map<string, SimpleFeature>,
-  layoutRecords: ReturnType<typeof layoutFeatures>,
+  layoutRecords: ReturnType<typeof doLayout>,
   height = 100,
 ) {
   const width = (args.region.end - args.region.start) / args.bpPerPx
@@ -109,7 +116,9 @@ async function renderAndGetResult(
         ctx,
         layoutRecords,
         canvasWidth: width,
-        renderArgs: { ...args, features, regions: [args.region] },
+        // layout here is a MultiLayout; RenderArgs declares BaseLayout, the same
+        // boundary the renderer casts across (see doAll.ts)
+        renderArgs: { ...args, features, regions: [args.region] } as any,
         configContext: args.configContext,
       }),
   )
@@ -118,7 +127,7 @@ async function renderAndGetResult(
 function renderToCanvas(
   args: ReturnType<typeof createRenderArgs>,
   features: Map<string, SimpleFeature>,
-  layoutRecords: ReturnType<typeof layoutFeatures>,
+  layoutRecords: ReturnType<typeof doLayout>,
   height: number,
 ) {
   const width = args.region.end - args.region.start
@@ -128,7 +137,7 @@ function renderToCanvas(
     ctx: ctx as unknown as CanvasRenderingContext2D,
     layoutRecords,
     canvasWidth: width,
-    renderArgs: { ...args, features, regions: [args.region] },
+    renderArgs: { ...args, features, regions: [args.region] } as any,
     configContext: args.configContext,
   })
   return canvas
@@ -389,13 +398,18 @@ describe('CanvasFeatureRenderer', () => {
         subfeatureLabels: 'below',
       })
       const layoutRecords = doLayout(args, features)
-      await renderAndGetResult(args, features, layoutRecords)
+      const result = await renderAndGetResult(args, features, layoutRecords)
 
-      const layoutData = args.layout.getSerializableDataByID('mrna1')
-      expect(layoutData).toBeDefined()
-      expect(layoutData!.floatingLabels).toBeDefined()
-      expect(layoutData!.floatingLabels!.length).toBeGreaterThan(0)
-      expect(layoutData!.floatingLabels![0]!.parentFeatureId).toBe('gene1')
+      // This used to look for subfeature labels in the layout's serializable
+      // data, under the subfeature's own id. They were never there: only
+      // top-level features get an addRect, so the sublayout holds a single
+      // rectangle keyed 'gene1'. The mouseover data for a subfeature lives on
+      // the subfeatureInfos that makeImageData returns, which is what
+      // CanvasFeatureRendering's hit detection actually reads.
+      const subInfo = result.subfeatureInfos.find(s => s.featureId === 'mrna1')
+      expect(subInfo).toBeDefined()
+      expect(subInfo!.parentFeatureId).toBe('gene1')
+      expect(subInfo!.displayLabel).toBe('TestTranscript')
     })
 
     test('compact display mode', async () => {

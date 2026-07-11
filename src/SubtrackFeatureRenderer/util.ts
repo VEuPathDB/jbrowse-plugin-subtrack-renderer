@@ -5,6 +5,10 @@ import { readCachedConfig } from './renderConfig'
 import type { RenderConfigContext } from './renderConfig'
 import type { AnyConfigurationModel } from '@jbrowse/core/configuration'
 import type { Feature } from '@jbrowse/core/util'
+// side-effect type import: pulls in core's `declare module
+// '@mui/material/styles'` augmentation, which is what puts framesCDS on
+// Palette. ts-jest compiles files in isolation, so it must be explicit here.
+import type {} from '@jbrowse/core/ui'
 import type { Theme } from '@mui/material'
 
 const MAX_LABEL_LENGTH = 50

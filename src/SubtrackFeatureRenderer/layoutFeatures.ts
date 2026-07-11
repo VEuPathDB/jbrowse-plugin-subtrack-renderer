@@ -147,10 +147,15 @@ export function layoutFeatures({
       continue // Skip this feature
     }
 
-    // Build layout key - use composite key if subtracks enabled
+    // Which sublayout of the MultiLayout this feature is packed into. With
+    // subtracks on, that is one lane per subtrack. With subtracks off, every
+    // feature must share ONE sublayout so they stack and collide normally --
+    // keying by feature.id() here gave each feature a private sublayout, so
+    // every feature landed at y=0 on top of every other one. Core's canvas
+    // renderer does the same thing via getSublayout(regions[0].refName).
     const layoutKey = subtrack
       ? buildLayoutKey(region.refName, subtrack.label)
-      : feature.id()
+      : region.refName
 
     // Calculate the total height needed including floating labels
     let floatingLabelsHeight = 0

@@ -1,7 +1,13 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "rootDir": "./"
+    "rootDir": "./",
+    // jest globals, plus jest-image-snapshot's toMatchImageSnapshot matcher
+    "types": ["node", "jest", "jest-image-snapshot"]
   },
-  "include": ["./jest.config.ts", "./jest.setup.ts"]
+  // `src` must be included: the ambient declaration in src/jbrowse-theme.d.ts is
+  // what pulls in core's MUI palette augmentation (framesCDS et al). Without it,
+  // ts-jest compiles a module like util.ts in isolation and fails on
+  // theme.palette.framesCDS.
+  "include": ["src", "jest.config.js", "jest.setup.js"]
 }

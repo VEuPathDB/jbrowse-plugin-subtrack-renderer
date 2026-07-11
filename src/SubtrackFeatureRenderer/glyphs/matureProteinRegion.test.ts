@@ -1,6 +1,7 @@
 import PluginManager from '@jbrowse/core/PluginManager'
 import { renderToAbstractCanvas } from '@jbrowse/core/util'
 import GranularRectLayout from '@jbrowse/core/util/layouts/GranularRectLayout'
+import { MultiLayout } from '@jbrowse/core/util/layouts'
 import SimpleFeature from '@jbrowse/core/util/simpleFeature'
 import { Image, createCanvas } from 'canvas'
 import { toMatchImageSnapshot } from 'jest-image-snapshot'
@@ -64,7 +65,9 @@ function createRenderArgs(
 ) {
   const config = configSchema.create(configOverrides, { pluginManager })
   const bpPerPx = 1
-  const layout = new GranularRectLayout<LayoutSerializableData>({
+  // SubtrackFeatureRenderer always lays into a MultiLayout -- see the note in
+  // CanvasFeatureRenderer.test.ts
+  const layout = new MultiLayout(GranularRectLayout, {
     pitchX: 1,
     pitchY: 1,
   })
@@ -86,6 +89,7 @@ function doLayout(
   args: ReturnType<typeof createRenderArgs>,
   features: Map<string, SimpleFeature>,
 ) {
+  // layoutFeatures returns { layoutRecords, subtrackPositions }
   return layoutFeatures({
     pluginManager,
     features,
@@ -93,13 +97,13 @@ function doLayout(
     region: args.region,
     configContext: args.configContext,
     layout: args.layout,
-  })
+  }).layoutRecords
 }
 
 async function renderAndGetResult(
   args: ReturnType<typeof createRenderArgs>,
   features: Map<string, SimpleFeature>,
-  layoutRecords: ReturnType<typeof layoutFeatures>,
+  layoutRecords: ReturnType<typeof doLayout>,
   height = 200,
 ) {
   const width = (args.region.end - args.region.start) / args.bpPerPx
@@ -112,7 +116,9 @@ async function renderAndGetResult(
         ctx,
         layoutRecords,
         canvasWidth: width,
-        renderArgs: { ...args, features, regions: [args.region] },
+        // layout here is a MultiLayout; RenderArgs declares BaseLayout, the same
+        // boundary the renderer casts across (see doAll.ts)
+        renderArgs: { ...args, features, regions: [args.region] } as any,
         configContext: args.configContext,
       }),
   )
@@ -121,7 +127,7 @@ async function renderAndGetResult(
 function renderToCanvas(
   args: ReturnType<typeof createRenderArgs>,
   features: Map<string, SimpleFeature>,
-  layoutRecords: ReturnType<typeof layoutFeatures>,
+  layoutRecords: ReturnType<typeof doLayout>,
   height: number,
 ) {
   const width = Math.min(args.region.end - args.region.start, 1000)
@@ -131,7 +137,7 @@ function renderToCanvas(
     ctx: ctx as unknown as CanvasRenderingContext2D,
     layoutRecords,
     canvasWidth: width,
-    renderArgs: { ...args, features, regions: [args.region] },
+    renderArgs: { ...args, features, regions: [args.region] } as any,
     configContext: args.configContext,
   })
   return canvas
