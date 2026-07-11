@@ -16,6 +16,11 @@
     "rootDir": "./src",
     // stricter type-checking for stronger correctness. Recommended by TS
     "strict": true,
+    // arr[i] is T | undefined, not T. The codebase was already written as if this
+    // were on -- every `arr[0]!` depends on it -- but it was never actually set,
+    // so tsc typed arr[0] as T and eslint flagged those assertions as
+    // "unnecessary". Enabling it costs zero new errors and makes them correct.
+    "noUncheckedIndexedAccess": true,
     // linter checks for common issues
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
