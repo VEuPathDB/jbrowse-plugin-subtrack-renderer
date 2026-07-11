@@ -345,7 +345,7 @@ describe('createRenderConfigContext subtracks', () => {
     expect(ctx.subtracks.map(s => s.label)).toEqual(['FromDisplay'])
   })
 
-  it('treats an empty override as a real choice, not as absent', () => {
+  it('an empty override yields no lanes', () => {
     const ctx = createRenderConfigContext(makeConfig(), [])
 
     expect(ctx.subtracks).toEqual([])
@@ -353,7 +353,16 @@ describe('createRenderConfigContext subtracks', () => {
 })
 ```
 
-That last case is the trap: `override || readConfObject(...)` would wrongly fall back to the config when the user has deselected everything. It must be an `undefined` check, not a truthiness check.
+That last case asserts that deselecting every lane draws no lanes, rather than
+silently resurrecting the config's.
+
+> **Correction.** An earlier draft of this plan claimed `override || readConf(...)`
+> would wrongly fall back here, and that `??` was required to prevent it. **That
+> is false: `[]` is truthy in JavaScript**, so `[] || fallback` evaluates to `[]`
+> exactly as `[] ?? fallback` does. The two operators are indistinguishable for
+> a value typed `Subtrack[] | undefined`. Use `??` anyway — it states the intent
+> and stays correct if the type ever admits `null` — but do not believe, or
+> re-assert, that a test can tell them apart.
 
 - [ ] **Step 2: Run it to make sure it fails**
 
@@ -380,8 +389,8 @@ and
     // The display owns which subtracks are shown and in what order, and hands
     // the resolved list down through renderProps. The config fallback keeps the
     // renderer usable standalone (and keeps the image snapshot tests green).
-    // Note `?? `, not `|| ` -- an empty override means "the user deselected
-    // everything", which is a real answer, not a missing one.
+    // The override is authoritative whenever the display supplies one --
+    // including when it is empty, meaning the user deselected every lane.
     subtracks:
       subtracksOverride ??
       ((readConfObject(config, 'subtracks') || []) as Subtrack[]),
@@ -469,8 +478,9 @@ createRenderConfigContext takes an optional subtracks list, which doAll pulls
 off renderProps. The config remains the fallback, so the renderer stays
 standalone-testable and the image snapshots are untouched.
 
-Uses ?? rather than ||: an empty override means the user deselected every lane,
-which is an answer, not an absence.
+The override is authoritative whenever the display supplies one, including when
+it is empty -- deselecting every lane draws no lanes rather than silently
+resurrecting the config's.
 
 Also fixes the layout-clearing loop, which cleared sublayouts by the config list
 rather than the list actually being drawn -- with a user selection in play that
