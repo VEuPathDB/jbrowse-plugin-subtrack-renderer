@@ -1,5 +1,7 @@
 import { readConfObject } from '@jbrowse/core/configuration'
 
+import { resolveRenderSubtracks } from './subtrackUtils'
+
 import type { Subtrack, SubtrackConfig } from './subtrackUtils'
 import type { AnyConfigurationModel } from '@jbrowse/core/configuration'
 import type { Feature } from '@jbrowse/core/util'
@@ -119,16 +121,11 @@ export function createRenderConfigContext(
 
     labelAllowed: displayMode !== 'collapse',
 
-    // Subtrack configuration
-    //
-    // The display owns which subtracks are shown and in what order, and hands
-    // the resolved list down through renderProps. The config fallback keeps the
-    // renderer usable standalone (and keeps the image snapshot tests green).
-    // Note `??`, not `||` -- an empty override means "the user deselected
-    // everything", which is a real answer, not a missing one.
-    subtracks:
-      subtracksOverride ??
-      ((readConfObject(config, 'subtracks') || []) as Subtrack[]),
+    // Subtrack configuration. The display owns which subtracks are shown and in
+    // what order, and hands the resolved list down through renderProps; the
+    // config catalog is the fallback for the standalone/no-display case. See
+    // resolveRenderSubtracks -- the single place that decision is made.
+    subtracks: resolveRenderSubtracks({ config, subtracks: subtracksOverride }),
     subtrackConfig: {
       enabled: readConfObject(config, ['subtrackConfig', 'enabled']) as boolean,
       perSubtrackHeight: readConfObject(config, [

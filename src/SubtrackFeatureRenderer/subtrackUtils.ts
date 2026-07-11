@@ -1,3 +1,6 @@
+import { readConfObject } from '@jbrowse/core/configuration'
+
+import type { AnyConfigurationModel } from '@jbrowse/core/configuration'
 import type { Feature } from '@jbrowse/core/util'
 
 export interface Subtrack {
@@ -118,4 +121,29 @@ export function calculateSubtrackPositions(
  */
 export function buildLayoutKey(refName: string, subtrackLabel: string): string {
   return `${refName}:${subtrackLabel}`
+}
+
+/** The slice of renderProps this resolution depends on. */
+export interface RenderSubtrackArgs {
+  config: AnyConfigurationModel
+  /** the display's resolved, ordered selection; absent when there is no display */
+  subtracks?: Subtrack[]
+}
+
+/**
+ * Where the renderer gets its subtrack list: the display's resolved, ordered
+ * selection when there is one, the config catalog otherwise. Both the layout
+ * clearing and the layout itself must resolve it the SAME way -- clearing a
+ * different set than we draw leaves stale rectangles, which is exactly the bug
+ * this helper exists to make unrepeatable.
+ *
+ * An override that is present but empty is authoritative: the user deselected
+ * every lane, so we draw none. Only its absence falls back to the config, which
+ * is what keeps the renderer usable standalone (and the image snapshots green).
+ */
+export function resolveRenderSubtracks(args: RenderSubtrackArgs): Subtrack[] {
+  return (
+    args.subtracks ??
+    ((readConfObject(args.config, 'subtracks') || []) as Subtrack[])
+  )
 }

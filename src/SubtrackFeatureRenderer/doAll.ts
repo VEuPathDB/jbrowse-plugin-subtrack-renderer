@@ -4,11 +4,11 @@ import { layoutFeatures } from './layoutFeatures'
 import { makeImageData } from './makeImageData'
 import { fetchPeptideData } from './peptideUtils'
 import { createRenderConfigContext } from './renderConfig'
+import { resolveRenderSubtracks } from './subtrackUtils'
 
 import type PluginManager from '@jbrowse/core/PluginManager'
 import type { RenderArgsDeserialized } from '@jbrowse/core/pluggableElementTypes/renderers/BoxRendererType'
 import type { Feature } from '@jbrowse/core/util'
-import type { Subtrack } from './subtrackUtils'
 import type { SubtrackLayout } from './types'
 import type { BaseLayout } from '@jbrowse/core/util/layouts'
 
@@ -45,15 +45,14 @@ export async function doAll({
   }
 
   // Which subtracks to draw, and in what order, is the display's decision -- it
-  // travels down through renderProps, like subtrackLaneHeights below. Core's
-  // RenderArgsDeserialized has no slot for it, hence the cast. Undefined means
-  // the display never spoke, so the config is used instead.
-  const subtracksOverride = (renderProps as any).subtracks as
-    Subtrack[] | undefined
+  // travels down through renderProps, like subtrackLaneHeights below. The
+  // clearing loop in SubtrackFeatureRenderer.render() resolves it through this
+  // same helper, so the set we clear cannot drift from the set we lay out.
+  const resolvedSubtracks = resolveRenderSubtracks(renderProps)
 
   // Create config context ONCE at the start - this reads all config values upfront
   // to avoid expensive readConfObject calls in per-feature hot paths
-  const configContext = createRenderConfigContext(config, subtracksOverride)
+  const configContext = createRenderConfigContext(config, resolvedSubtracks)
 
   // Get subtrack configuration from context
   const { subtracks, subtrackConfig } = configContext

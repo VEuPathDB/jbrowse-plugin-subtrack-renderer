@@ -2,6 +2,7 @@ import PluginManager from '@jbrowse/core/PluginManager'
 
 import configSchema from './configSchema'
 import { createRenderConfigContext, readCachedConfig } from './renderConfig'
+import { resolveRenderSubtracks } from './subtrackUtils'
 
 import type { CachedConfig } from './renderConfig'
 import type { Subtrack } from './subtrackUtils'
@@ -130,9 +131,58 @@ describe('createRenderConfigContext subtracks', () => {
     expect(ctx.subtracks.map(s => s.label)).toEqual(['FromDisplay'])
   })
 
-  it('treats an empty override as a real choice, not as absent', () => {
+  it('an empty override yields no lanes', () => {
     const ctx = createRenderConfigContext(makeConfig(), [])
 
     expect(ctx.subtracks).toEqual([])
+  })
+})
+
+describe('resolveRenderSubtracks', () => {
+  const pluginManager = new PluginManager([])
+  pluginManager.configure()
+
+  function makeConfig() {
+    return configSchema.create(
+      {
+        subtracks: [
+          {
+            label: 'FromConfig',
+            featureFilters: { type: 'gene' },
+            visible: true,
+          },
+        ],
+      },
+      { pluginManager },
+    )
+  }
+
+  it('uses the config catalog when renderProps carries no selection', () => {
+    const config = makeConfig()
+
+    expect(resolveRenderSubtracks({ config }).map(s => s.label)).toEqual([
+      'FromConfig',
+    ])
+  })
+
+  it('uses the display selection when renderProps carries one', () => {
+    const config = makeConfig()
+    const subtracks: Subtrack[] = [
+      {
+        label: 'FromDisplay',
+        featureFilters: { type: 'match' },
+        visible: true,
+      },
+    ]
+
+    expect(
+      resolveRenderSubtracks({ config, subtracks }).map(s => s.label),
+    ).toEqual(['FromDisplay'])
+  })
+
+  it('an empty selection yields no lanes rather than the config catalog', () => {
+    const config = makeConfig()
+
+    expect(resolveRenderSubtracks({ config, subtracks: [] })).toEqual([])
   })
 })
