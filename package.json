@@ -69,6 +69,7 @@
     "@jbrowse/core": "^4.3.0",
     "@jbrowse/development-tools": "^2.2.1",
     "@jbrowse/mobx-state-tree": "^5.10.2",
+    "@jbrowse/plugin-linear-genome-view": "^4.3.0",
     "@mui/material": "^7.3.11",
     "@mui/system": "^7.3.11",
     "@mui/x-data-grid": "^8.28.2",

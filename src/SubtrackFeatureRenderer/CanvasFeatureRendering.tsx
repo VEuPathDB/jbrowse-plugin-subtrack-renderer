@@ -7,40 +7,25 @@ import { observer } from 'mobx-react'
 
 import type { FlatbushItem, SubfeatureInfo } from './types'
 import type { Region } from '@jbrowse/core/util/types'
+import type { BaseLinearDisplayModel } from '@jbrowse/plugin-linear-genome-view'
 
 /**
- * Structural mirror of the bits of BaseLinearDisplay this component touches.
- * It is hand-written rather than imported because
- * @jbrowse/plugin-linear-genome-view is not on core's ReExports list -- importing
- * it would bundle a duplicate copy of that plugin into this one.
+ * The display model this component is handed. Imported as a *type* from the
+ * linear-genome-view plugin rather than hand-mirrored.
  *
- * The cost is that it can silently drift from the real model, and it had: the
- * two *ById methods gained a third `topLevelFeatureId` argument in core, which
- * this component was already passing (correctly -- the runtime model has taken
- * it since at least v4.3.0) while the interface still declared two. Keep this in
- * step with plugins/linear-genome-view/src/BaseLinearDisplay/model.ts.
+ * A hand-written mirror used to live here, on the theory that
+ * @jbrowse/plugin-linear-genome-view cannot be imported because it is not on
+ * core's ReExports list. That is true of *value* imports -- pulling in
+ * BaseLinearDisplay itself would bundle a private duplicate of the whole LGV
+ * plugin, with its own MST type identity, which is why the model factory reaches
+ * it through pluginManager.getPlugin('LinearGenomeViewPlugin').exports instead.
+ *
+ * It is NOT true of type imports: `import type` is erased at compile time and
+ * never reaches the bundle, so this costs nothing at runtime. The mirror bought
+ * us nothing and silently rotted -- it was still declaring the two *ById methods
+ * with two parameters after core had given them a third.
  */
-interface DisplayModel {
-  selectedFeatureId?: string
-  featureIdUnderMouse?: string
-  subfeatureIdUnderMouse?: string
-  contextMenuFeature?: { id: () => string }
-  setContextMenuFeature: (feature: unknown) => void
-  setFeatureIdUnderMouse: (id: string | undefined) => void
-  setSubfeatureIdUnderMouse: (id: string | undefined) => void
-  setMouseoverExtraInformation: (info: unknown) => void
-  selectFeatureById: (
-    featureId: string,
-    parentFeatureId?: string,
-    topLevelFeatureId?: string,
-  ) => Promise<void>
-  clearFeatureSelection: () => void
-  setContextMenuFeatureById: (
-    featureId: string,
-    parentFeatureId?: string,
-    topLevelFeatureId?: string,
-  ) => Promise<void>
-}
+type DisplayModel = BaseLinearDisplayModel
 
 const CanvasFeatureRendering = observer(function CanvasFeatureRendering(props: {
   blockKey: string

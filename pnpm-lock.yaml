@@ -36,6 +36,9 @@ importers:
       '@jbrowse/mobx-state-tree':
         specifier: ^5.10.2
         version: 5.12.0(mobx@6.16.1)
+      '@jbrowse/plugin-linear-genome-view':
+        specifier: ^4.3.0
+        version: 4.3.0(@emotion/react@11.14.0(@types/react@19.2.17)(react@19.2.7))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@mui/material':
         specifier: ^7.3.11
         version: 7.3.11(@emotion/react@11.14.0(@types/react@19.2.17)(react@19.2.7))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -986,6 +989,18 @@ packages:
     engines: {node: '>=22', pnpm: '>=10'}
     peerDependencies:
       mobx: ^6.3.0
+
+  '@jbrowse/plugin-linear-genome-view@4.3.0':
+    resolution: {integrity: sha512-zaTqT0CyyWezenlQcSeMEbycpDXUDzHkXmtn5MEFjJNx+x3dkiEDt4vLSnb8Z8G8VpxqNsru9CLKpZ19kQKArQ==}
+    peerDependencies:
+      react: '>=18.0.0'
+      react-dom: '>=18.0.0'
+
+  '@jbrowse/product-core@4.3.0':
+    resolution: {integrity: sha512-gE8dhAINfhRimbecahB3/2VeM8BJPpbdpdWwtqY12FAETB+Ez2Rqojizkgn8+HVOf52tsP7UdYZy2yk6SoZ2Yg==}
+    peerDependencies:
+      react: '>=18.0.0'
+      react-dom: '>=18.0.0'
 
   '@jbrowse/quick-lru@7.3.5':
     resolution: {integrity: sha512-DPEtODWKt+QGmCg+EO36sSmKOmdjJOwtxeV/4PBnf+7jqC/P7R4YIz+/yohtqh9UZ38dbLtXIlmigPlkZy8SAA==}
@@ -6360,6 +6375,47 @@ snapshots:
   '@jbrowse/mobx-state-tree@5.12.0(mobx@6.16.1)':
     dependencies:
       mobx: 6.16.1
+
+  '@jbrowse/plugin-linear-genome-view@4.3.0(@emotion/react@11.14.0(@types/react@19.2.17)(react@19.2.7))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
+    dependencies:
+      '@jbrowse/core': 4.3.0(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@jbrowse/mobx-state-tree': 5.12.0(mobx@6.16.1)
+      '@jbrowse/product-core': 4.3.0(@emotion/react@11.14.0(@types/react@19.2.17)(react@19.2.7))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@mui/icons-material': 7.3.11(@mui/material@7.3.11(@emotion/react@11.14.0(@types/react@19.2.17)(react@19.2.7))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(@types/react@19.2.17)(react@19.2.7)
+      '@mui/material': 7.3.11(@emotion/react@11.14.0(@types/react@19.2.17)(react@19.2.7))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@types/file-saver-es': 2.0.3
+      copy-to-clipboard: 3.3.3
+      file-saver-es: 2.0.5
+      mobx: 6.16.1
+      mobx-react: 9.2.2(mobx@6.16.1)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      react: 19.2.7
+      react-dom: 19.2.7(react@19.2.7)
+    transitivePeerDependencies:
+      - '@emotion/react'
+      - '@emotion/styled'
+      - '@mui/material-pigment-css'
+      - '@types/react'
+      - react-native
+      - supports-color
+
+  '@jbrowse/product-core@4.3.0(@emotion/react@11.14.0(@types/react@19.2.17)(react@19.2.7))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
+    dependencies:
+      '@jbrowse/core': 4.3.0(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@jbrowse/mobx-state-tree': 5.12.0(mobx@6.16.1)
+      '@mui/material': 7.3.11(@emotion/react@11.14.0(@types/react@19.2.17)(react@19.2.7))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      copy-to-clipboard: 3.3.3
+      librpc-web-mod: 2.1.1
+      mobx: 6.16.1
+      mobx-react: 9.2.2(mobx@6.16.1)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      react: 19.2.7
+      react-dom: 19.2.7(react@19.2.7)
+    transitivePeerDependencies:
+      - '@emotion/react'
+      - '@emotion/styled'
+      - '@mui/material-pigment-css'
+      - '@types/react'
+      - react-native
+      - supports-color
 
   '@jbrowse/quick-lru@7.3.5': {}
 
