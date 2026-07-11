@@ -2,6 +2,7 @@ import { DisplayType } from '@jbrowse/core/pluggableElementTypes'
 
 import { configSchemaFactory } from './configSchema'
 import { stateModelFactory } from './model'
+import { getLgvExports } from '../lgvExports'
 
 import type PluginManager from '@jbrowse/core/PluginManager'
 
@@ -9,9 +10,7 @@ import type PluginManager from '@jbrowse/core/PluginManager'
  * Create SubtrackFeatureDisplay display type
  */
 export default function SubtrackFeatureDisplayF(pluginManager: PluginManager) {
-  const LinearFeatureDisplayType = pluginManager.getDisplayType(
-    'LinearFeatureDisplay',
-  )
+  const { BaseLinearDisplayComponent } = getLgvExports(pluginManager)
 
   return new DisplayType({
     name: 'SubtrackFeatureDisplay',
@@ -20,6 +19,6 @@ export default function SubtrackFeatureDisplayF(pluginManager: PluginManager) {
     stateModel: stateModelFactory(pluginManager),
     trackType: 'FeatureTrack',
     viewType: 'LinearGenomeView',
-    ReactComponent: LinearFeatureDisplayType?.ReactComponent,
+    ReactComponent: BaseLinearDisplayComponent,
   })
 }

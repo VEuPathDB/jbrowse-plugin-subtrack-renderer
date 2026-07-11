@@ -7,7 +7,9 @@
   "assemblies": [
     {
       "name": "hg38",
-      "aliases": ["GRCh38"],
+      "aliases": [
+        "GRCh38"
+      ],
       "sequence": {
         "type": "ReferenceSequenceTrack",
         "trackId": "hg38-ReferenceSequenceTrack",
@@ -34,8 +36,12 @@
       "type": "FeatureTrack",
       "trackId": "ncbi_refseq_standard",
       "name": "NCBI RefSeq (Standard)",
-      "assemblyNames": ["hg38"],
-      "category": ["Annotation"],
+      "assemblyNames": [
+        "hg38"
+      ],
+      "category": [
+        "Annotation"
+      ],
       "adapter": {
         "type": "Gff3TabixAdapter",
         "gffGzLocation": {
@@ -54,8 +60,12 @@
       "type": "FeatureTrack",
       "trackId": "ncbi_refseq_subtrack",
       "name": "NCBI RefSeq (Subtrack)",
-      "assemblyNames": ["hg38"],
-      "category": ["Annotation"],
+      "assemblyNames": [
+        "hg38"
+      ],
+      "category": [
+        "Annotation"
+      ],
       "adapter": {
         "type": "Gff3TabixAdapter",
         "gffGzLocation": {
@@ -71,15 +81,15 @@
       },
       "displays": [
         {
-          "type": "LinearBasicDisplay",
-          "displayId": "ncbi_refseq_subtrack-LinearBasicDisplay",
+          "type": "SubtrackFeatureDisplay",
+          "displayId": "ncbi_refseq_subtrack-SubtrackFeatureDisplay",
           "renderer": {
             "type": "SubtrackFeatureRenderer",
             "subtrackConfig": {
               "enabled": true,
-              "perSubtrackHeight": 60,
               "spacing": 8,
-              "showLabels": true
+              "showLabels": true,
+              "minSubtrackHeight": 20
             },
             "subtracks": [
               {
@@ -149,8 +159,8 @@
             "configuration": "ncbi_refseq_subtrack",
             "displays": [
               {
-                "type": "LinearBasicDisplay",
-                "configuration": "ncbi_refseq_subtrack-LinearBasicDisplay"
+                "type": "SubtrackFeatureDisplay",
+                "configuration": "ncbi_refseq_subtrack-SubtrackFeatureDisplay"
               }
             ]
           }

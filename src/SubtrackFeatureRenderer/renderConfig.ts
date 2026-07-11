@@ -126,6 +126,10 @@ export function createRenderConfigContext(
         'subtrackConfig',
         'perSubtrackHeight',
       ]) as number,
+      minSubtrackHeight: readConfObject(config, [
+        'subtrackConfig',
+        'minSubtrackHeight',
+      ]) as number,
       spacing: readConfObject(config, ['subtrackConfig', 'spacing']) as number,
       showLabels: readConfObject(config, [
         'subtrackConfig',

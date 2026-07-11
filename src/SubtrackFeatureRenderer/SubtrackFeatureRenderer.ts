@@ -1,6 +1,6 @@
 import { BoxRendererType } from '@jbrowse/core/pluggableElementTypes'
 import { readConfObject } from '@jbrowse/core/configuration'
-import MultiLayout from '@jbrowse/core/util/layouts/MultiLayout'
+import { MultiLayout } from '@jbrowse/core/util/layouts'
 import GranularRectLayout from '@jbrowse/core/util/layouts/GranularRectLayout'
 import deepEqual from 'fast-deep-equal'
 
@@ -90,15 +90,32 @@ export default class SubtrackFeatureRenderer extends BoxRendererType {
   // TODO: Implement SVG rendering for subtracks
   supportsSVG = false
 
-  // Track min/max heights across all renders to keep yOffsets stable
-  // Key: refName, Value: Map<subtrackLabel, {min, max}>
-  private heightStats = new Map<string, Map<string, {min: number, max: number}>>()
+  // NOTE: the renderer deliberately holds NO cross-block height state. It used
+  // to accumulate min/max heights per refName here, which ratcheted upward
+  // forever (lanes could grow but never shrink) and left already-rendered
+  // blocks stranded at stale offsets. Lane geometry is now owned by
+  // SubtrackFeatureDisplay and arrives via renderProps.subtrackLaneHeights.
 
   /**
    * Override to create our custom layout session with MultiLayout
    */
   createLayoutSession(props: LayoutSessionProps) {
     return new SubtrackLayoutSession(props)
+  }
+
+  /**
+   * PrecomputedLayout's constructor only picks up
+   * {rectangles, totalHeight, maxHeightReached}, so the per-lane content
+   * heights we serialized into the layout would be dropped on the way back
+   * into the client. Reattach them -- the display reads them off block.layout
+   * to work out the shared lane geometry.
+   */
+  deserializeLayoutInClient(json: SerializedLayout) {
+    const layout = super.deserializeLayoutInClient(json)
+    ;(layout as any).subtrackContentHeights = (
+      json as any
+    ).subtrackContentHeights
+    return layout
   }
 
   /**
@@ -111,7 +128,15 @@ export default class SubtrackFeatureRenderer extends BoxRendererType {
     args: RenderArgsDeserialized,
   ): any {
     // Extract everything we need from results
-    const { reactElement, features, layout: resultLayout, height, width, ...rest } = results
+    const {
+      reactElement,
+      features,
+      layout: resultLayout,
+      height,
+      width,
+      subtrackContentHeights,
+      ...rest
+    } = results
 
     // Manually do what FeatureRendererType does: serialize features
     let serializedFeatures: any[] | undefined
@@ -164,10 +189,14 @@ export default class SubtrackFeatureRenderer extends BoxRendererType {
       ? serializedFeatures.filter((f: any) => !!layout.rectangles[f.uniqueId])
       : undefined
 
-    // Return what BoxRendererType would return, plus width and height
+    // Core only preserves {reactElement, features, layout, maxHeightReached,
+    // renderProps, renderArgs} from a render result onto the block model --
+    // any other top-level field is dropped. `layout` is the one channel that
+    // survives, so the per-lane content heights ride along inside it. The
+    // display reads them back off block.layout.
     return {
       ...rest,
-      layout,
+      layout: { ...layout, subtrackContentHeights },
       maxHeightReached: layout.maxHeightReached,
       features: visibleFeatures,
       width,
@@ -193,12 +222,6 @@ export default class SubtrackFeatureRenderer extends BoxRendererType {
 
     // Get subtrack names from config and clear each sublayout
     const subtracks = readConfObject(config, 'subtracks') || []
-    const subtrackConfig = {
-      enabled: readConfObject(config, 'subtracksEnabled') || false,
-      perSubtrackHeight: readConfObject(config, 'perSubtrackHeight') || 100,
-      spacing: readConfObject(config, 'subtrackSpacing') || 5,
-      showLabels: readConfObject(config, 'showSubtrackLabels') !== false,
-    }
     for (const subtrack of subtracks) {
       if (subtrack.visible !== false) {
         // Use the same buildLayoutKey function that layoutFeatures uses
@@ -214,7 +237,6 @@ export default class SubtrackFeatureRenderer extends BoxRendererType {
       renderProps,
       layout,
       features,
-      heightStats: this.heightStats,
     })
 
     // Height is calculated in doAll() and returned in res.height

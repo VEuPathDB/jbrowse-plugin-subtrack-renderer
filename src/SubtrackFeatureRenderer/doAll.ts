@@ -25,13 +25,11 @@ export async function doAll({
   features,
   renderProps,
   pluginManager,
-  heightStats,
 }: {
   pluginManager: PluginManager
   layout: BaseLayout<unknown>
   features: Map<string, Feature>
   renderProps: RenderArgsDeserialized
-  heightStats: Map<string, Map<string, {min: number, max: number}>>
 }) {
   const { statusCallback = () => {}, regions, bpPerPx, config } = renderProps
   const region = regions[0]!
@@ -68,57 +66,61 @@ export async function doAll({
     },
   )
 
-  // Calculate yOffsets using MAX heights seen across all renders
-  // This keeps yOffsets stable even as different regions are rendered
+  // How tall this block's content actually needs each lane to be. This is a
+  // pure function of the features in THIS block -- it does not depend on the
+  // geometry we are handed below, which is what lets the display converge:
+  // geometry changes never change the reported need.
+  const subtrackContentHeights: Record<string, number> = {}
+
   if (subtrackConfig.enabled && 'subLayouts' in layout) {
-    // Get or create stats for this refName
-    let refStats = heightStats.get(region.refName)
-    if (!refStats) {
-      refStats = new Map()
-      heightStats.set(region.refName, refStats)
-    }
-
-    // First pass: Update min/max stats with current heights
     for (const subtrack of subtracks) {
-      if (subtrack.visible === false) continue
-
+      if (subtrack.visible === false) {
+        continue
+      }
       const layoutKey = `${region.refName}:${subtrack.label}`
       const sublayout = (layout as any).subLayouts?.get(layoutKey)
-
-      if (sublayout && typeof sublayout.getTotalHeight === 'function') {
-        const currentHeight = sublayout.getTotalHeight()
-        if (Number.isFinite(currentHeight) && currentHeight > 0) {
-          let stats = refStats.get(subtrack.label)
-          if (!stats) {
-            stats = { min: currentHeight, max: currentHeight }
-            refStats.set(subtrack.label, stats)
-          } else {
-            stats.min = Math.min(stats.min, currentHeight)
-            stats.max = Math.max(stats.max, currentHeight)
-          }
-        }
-      }
+      const h = sublayout?.getTotalHeight?.()
+      subtrackContentHeights[subtrack.label] =
+        Number.isFinite(h) && h > 0 ? h : 0
     }
+  }
 
-    // Second pass: Calculate yOffsets using MAX heights for consistency
+  // Lane geometry is owned by the display and handed to us via renderProps, so
+  // that EVERY block in the visible region draws its lanes at identical
+  // offsets. Deriving it here per-block cannot work: blocks render in sequence
+  // against a shared accumulating layout, so each one would see a different
+  // set of features and pick different offsets, and the blocks that already
+  // rendered would never be told. The display collects the per-block content
+  // heights below, takes the max, and pushes the result back through
+  // renderProps -- which re-renders the whole visible region at once.
+  const laneHeights = (renderProps as any).subtrackLaneHeights as
+    | Record<string, number>
+    | undefined
+
+  if (subtrackConfig.enabled) {
     let currentY = 0
     for (const subtrack of subtracks) {
-      if (subtrack.visible === false) continue
+      if (subtrack.visible === false) {
+        continue
+      }
 
-      const stats = refStats.get(subtrack.label)
-      // Use MAX height to ensure enough space for tallest regions
-      const heightToUse = stats
-        ? Math.max(stats.max, subtrackConfig.perSubtrackHeight)
-        : subtrackConfig.perSubtrackHeight
+      // Fall back to this block's own content only on the very first pass,
+      // before the display has published any geometry.
+      const authoritative = laneHeights?.[subtrack.label]
+      const fallback = subtrackContentHeights[subtrack.label] || 0
+      const height = Math.max(
+        authoritative ?? fallback ?? 0,
+        subtrackConfig.minSubtrackHeight,
+      )
 
       subtrackPositions.set(subtrack.label, {
         label: subtrack.label,
         yOffset: currentY,
-        height: heightToUse,
+        height,
         visible: true,
       })
 
-      currentY += heightToUse + subtrackConfig.spacing
+      currentY += height + subtrackConfig.spacing
     }
   }
 
@@ -189,6 +191,8 @@ export async function doAll({
       ...result,
       width,
       height,
+      // reported back to the display so it can compute the max across blocks
+      subtrackContentHeights,
     }
   })
 }

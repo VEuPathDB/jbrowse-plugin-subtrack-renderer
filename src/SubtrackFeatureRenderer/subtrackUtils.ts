@@ -9,7 +9,10 @@ export interface Subtrack {
 
 export interface SubtrackConfig {
   enabled: boolean
+  /** fallback height, used only until the layout reports its content height */
   perSubtrackHeight: number
+  /** floor a lane may shrink to, so its label stays legible */
+  minSubtrackHeight: number
   spacing: number
   showLabels: boolean
 }

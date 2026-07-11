@@ -1,5 +1,5 @@
 import { ConfigurationSchema } from '@jbrowse/core/configuration'
-import { types } from 'mobx-state-tree'
+import { types } from '@jbrowse/mobx-state-tree'
 
 /**
  * #config SubtrackFeatureRenderer
@@ -279,8 +279,18 @@ const SubtrackFeatureRenderer = ConfigurationSchema(
        */
       perSubtrackHeight: {
         type: 'integer',
-        description: 'Height in pixels for each subtrack lane',
+        description:
+          'Fallback height in pixels for a subtrack lane, used only until the layout reports how tall its content actually is. Lanes size to their content, so this is not a floor -- see minSubtrackHeight.',
         defaultValue: 100,
+      },
+      /**
+       * #slot subtrackConfig.minSubtrackHeight
+       */
+      minSubtrackHeight: {
+        type: 'integer',
+        description:
+          'Smallest height in pixels a subtrack lane may shrink to, so its label stays legible when it holds few features',
+        defaultValue: 20,
       },
       /**
        * #slot subtrackConfig.spacing

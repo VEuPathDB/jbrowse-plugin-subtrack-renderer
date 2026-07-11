@@ -7,11 +7,10 @@ export default class SubtrackRendererPlugin extends Plugin {
   name = 'SubtrackRendererPlugin'
 
   install(pluginManager: PluginManager) {
+    // Both must be registered during install(); the registry is frozen once
+    // createPluggableElements() runs. The callbacks are lazy, so LinearFeatureDisplay
+    // is already available by the time they are actually invoked.
     pluginManager.addRendererType(() => SubtrackFeatureRendererF(pluginManager))
-  }
-
-  configure(pluginManager: PluginManager) {
-    // Register display type in configure phase to ensure LinearFeatureDisplay is available
     pluginManager.addDisplayType(() => SubtrackFeatureDisplayF(pluginManager))
   }
 }

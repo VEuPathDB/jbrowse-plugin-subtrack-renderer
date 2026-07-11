@@ -30,6 +30,7 @@ export function layoutFeatures({
   subtrackConfig = {
     enabled: false,
     perSubtrackHeight: 100,
+    minSubtrackHeight: 20,
     spacing: 5,
     showLabels: true,
   },
@@ -276,47 +277,28 @@ export function layoutFeatures({
 
       const layoutKey = buildLayoutKey(region.refName, subtrack.label)
 
-      console.log("LAYOUTKEY=" + layoutKey)
-      console.log("Layout type:", layout.constructor.name)
-      console.log("Layout subLayoutConstructorArgs:", (layout as any).subLayoutConstructorArgs)
-
       // Query actual height from the persistent sublayout
       let actualHeight = 0
-      console.log("Has getSublayout method?", 'getSublayout' in layout)
-
       if ('getSublayout' in layout) {
         try {
           const sublayout = (layout as any).getSublayout(layoutKey)
-          console.log("Sublayout exists?", !!sublayout)
-          console.log("Sublayout type:", sublayout?.constructor?.name)
-          console.log("Sublayout pitchX:", (sublayout as any)?.pitchX)
-          console.log("Sublayout pitchY:", (sublayout as any)?.pitchY)
-          console.log("Sublayout pTotalHeight:", (sublayout as any)?.pTotalHeight)
-          console.log("Has getTotalHeight?", sublayout && typeof sublayout.getTotalHeight === 'function')
-
           if (sublayout && typeof sublayout.getTotalHeight === 'function') {
             const sublayoutHeight = sublayout.getTotalHeight()
-            console.log("Got height from sublayout:", sublayoutHeight)
-
-            // Validate the height - getTotalHeight() can return NaN
+            // getTotalHeight() returns NaN for an empty sublayout
             if (Number.isFinite(sublayoutHeight) && sublayoutHeight > 0) {
               actualHeight = sublayoutHeight
-            } else {
-              console.warn('[SubtrackRenderer] Invalid height from sublayout:', sublayoutHeight, 'using default')
             }
-          } else {
-            console.log("Sublayout check failed - using default height")
           }
         } catch (e) {
           console.warn('[SubtrackRenderer] Failed to query sublayout height:', e)
         }
-      } else {
-        console.log("Layout does not have getSublayout method")
       }
 
-        console.log("ACTUALHeight=" + actualHeight)
-        
-      const height = Math.max(actualHeight, subtrackConfig.perSubtrackHeight)
+      // Lanes size to their content; perSubtrackHeight is only the fallback for
+      // when the layout has not reported a height yet. See doAll.ts.
+      const height = actualHeight
+        ? Math.max(actualHeight, subtrackConfig.minSubtrackHeight)
+        : subtrackConfig.perSubtrackHeight
 
       subtrackPositions.set(subtrack.label, {
         label: subtrack.label,
@@ -328,17 +310,6 @@ export function layoutFeatures({
       currentY += height + subtrackConfig.spacing
     }
   }
-
-  console.log('[SubtrackRenderer] Layout complete:', {
-    layoutRecords: layoutRecords.length,
-    matchedFeatures: matchedCount,
-    filteredOutFeatures: filteredCount,
-    subtrackPositions: Array.from(subtrackPositions.entries()).map(([label, info]) => ({
-      label,
-      yOffset: info.yOffset,
-      height: info.height
-    })),
-  })
 
   return { layoutRecords, subtrackPositions }
 }

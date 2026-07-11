@@ -1,5 +1,7 @@
 import { ConfigurationSchema } from '@jbrowse/core/configuration'
 
+import { getLgvExports } from '../lgvExports'
+
 import type PluginManager from '@jbrowse/core/PluginManager'
 
 /**
@@ -8,14 +10,19 @@ import type PluginManager from '@jbrowse/core/PluginManager'
  * Extends the base linear display config with subtrack-specific options
  */
 export function configSchemaFactory(pluginManager: PluginManager) {
-  // Get baseLinearDisplayConfigSchema from plugin manager
-  const { baseLinearDisplayConfigSchema } = pluginManager.lib[
-    'Plugin-linear-genome-view'
-  ] as any
+  const { baseLinearDisplayConfigSchema } = getLgvExports(pluginManager)
 
   return ConfigurationSchema(
     'SubtrackFeatureDisplay',
-    {},
+    {
+      /**
+       * #slot
+       * Renderer options. BaseLinearDisplay (unlike the LinearFeatureDisplay
+       * layer, which core does not export to external plugins) does not supply
+       * a renderer slot, so declare it here.
+       */
+      renderer: pluginManager.pluggableConfigSchemaType('renderer'),
+    },
     {
       /**
        * #baseConfiguration
