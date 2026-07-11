@@ -1,12 +1,14 @@
 import { reaction } from 'mobx'
-import { addDisposer, types, Instance } from '@jbrowse/mobx-state-tree'
+import { addDisposer, cast, types, Instance } from '@jbrowse/mobx-state-tree'
 import { getConf } from '@jbrowse/core/configuration'
 import SerializableFilterChain from '@jbrowse/core/pluggableElementTypes/renderers/util/serializableFilterChain'
 import deepEqual from 'fast-deep-equal'
 
 import { getLgvExports } from '../lgvExports'
+import { resolveSubtracks } from './resolveSubtracks'
 
 import type PluginManager from '@jbrowse/core/PluginManager'
+import type { Subtrack } from '../SubtrackFeatureRenderer/subtrackUtils'
 
 type LaneHeights = Record<string, number>
 
@@ -45,6 +47,17 @@ export function stateModelFactory(pluginManager: PluginManager) {
          * #property
          */
         type: types.literal('SubtrackFeatureDisplay'),
+        /**
+         * #property
+         * Ordered labels of the lanes the user wants to see, top to bottom.
+         * For a lane list, selection *is* order, so one property carries both.
+         *
+         * undefined means "the user has not chosen", so the catalog's own
+         * defaults apply. Being an MST property it rides the session snapshot,
+         * so a shared session URL carries the user's lane selection -- and a
+         * user who never opens the selector adds nothing to the snapshot.
+         */
+        subtrackSelection: types.maybe(types.array(types.string)),
       }),
     )
     .volatile(() => ({
@@ -110,6 +123,27 @@ export function stateModelFactory(pluginManager: PluginManager) {
         }
         return sawAny ? out : undefined
       },
+      /**
+       * #getter
+       * Every subtrack the config declares. Read-only: the config declares, the
+       * display decides.
+       */
+      get subtrackCatalog(): Subtrack[] {
+        return (self.rendererConfig?.subtracks ?? []) as Subtrack[]
+      },
+    }))
+    .views(self => ({
+      /**
+       * #getter
+       * The ordered, visible lanes to draw: the user's selection resolved
+       * against the catalog, or the catalog's defaults if they have not chosen.
+       */
+      get resolvedSubtracks(): Subtrack[] {
+        return resolveSubtracks(
+          self.subtrackCatalog,
+          self.subtrackSelection ? [...self.subtrackSelection] : undefined,
+        )
+      },
     }))
     .actions(self => ({
       /**
@@ -117,6 +151,21 @@ export function stateModelFactory(pluginManager: PluginManager) {
        */
       setLaneHeights(heights: LaneHeights | undefined) {
         self.laneHeights = heights
+      },
+      /**
+       * #action
+       */
+      setSubtrackSelection(labels: string[]) {
+        self.subtrackSelection = cast(labels)
+      },
+      /**
+       * #action
+       * Back to the catalog's defaults. Clearing to undefined (rather than
+       * writing the default list out) keeps the session snapshot clean and lets
+       * a later config change introduce new lanes.
+       */
+      resetSubtrackSelection() {
+        self.subtrackSelection = undefined
       },
     }))
     .views(self => {
@@ -135,6 +184,7 @@ export function stateModelFactory(pluginManager: PluginManager) {
             config: self.rendererConfig,
             filters: new SerializableFilterChain({ filters: [] }),
             subtrackLaneHeights: self.laneHeights,
+            subtracks: self.resolvedSubtracks,
           }
         },
       }
