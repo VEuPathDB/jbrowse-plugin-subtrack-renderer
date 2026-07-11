@@ -46,9 +46,19 @@ Useful commands:
 pnpm test                 # jest, ~13s
 pnpm test -- <pattern>    # single suite
 pnpm typecheck            # tsc --noEmit
-pnpm lint
 pnpm build                # rollup -> dist/*.umd.development.js
 ```
+
+**Do NOT use `pnpm lint` as a gate — it is red at baseline** (219 errors on
+untouched `init-dev`, all pre-existing and none of them ours). Lint only the
+files you touched:
+
+```bash
+npx eslint src/SubtrackSelector src/SubtrackFeatureDisplay/resolveSubtracks.ts
+```
+
+That must be clean. Do not "fix" the 219 pre-existing errors — that is not this
+feature's job and it would bury the diff.
 
 ---
 
@@ -1446,10 +1456,11 @@ export default SelectedLanesPanel
 - [ ] **Step 4: Typecheck and lint**
 
 ```bash
-pnpm typecheck && pnpm lint && pnpm format
+pnpm typecheck && npx eslint src/SubtrackSelector
 ```
 
-Expected: clean. Fix anything `noUncheckedIndexedAccess` complains about.
+Expected: clean. Fix anything `noUncheckedIndexedAccess` complains about. Do not
+run `pnpm lint` — it is red at baseline for unrelated reasons.
 
 - [ ] **Step 5: Commit**
 
@@ -1785,10 +1796,17 @@ The guard means the menu item only appears on tracks that actually use subtracks
 - [ ] **Step 2: Verify the whole suite and the bundle**
 
 ```bash
-pnpm test && pnpm typecheck && pnpm lint && pnpm build
+pnpm test && pnpm typecheck && pnpm build
+npx eslint src/SubtrackSelector src/SubtrackFeatureDisplay
 ```
 
-Expected: all tests pass (80 baseline + 8 + 3 + 8 + 10 + 6 = 115), typecheck clean, rollup produces `dist/*.umd.development.js`.
+Expected: all tests pass (80 baseline + 11 + 3 + 8 + 10 + 6 = 118), typecheck
+clean, scoped eslint clean, rollup produces `dist/*.umd.development.js`.
+
+Task 1 ended up with 11 tests rather than the 8 planned — code review found that
+`dedupeCatalog`'s `console.warn` fires inside a MobX computed (see
+`resolvedSubtracks`, Task 3), so it needed a content-keyed warn-once throttle
+plus tests. Hence the count.
 
 - [ ] **Step 3: Commit**
 
