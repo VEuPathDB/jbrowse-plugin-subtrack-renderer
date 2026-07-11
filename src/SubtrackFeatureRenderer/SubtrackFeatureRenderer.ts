@@ -212,7 +212,12 @@ export default class SubtrackFeatureRenderer extends BoxRendererType {
 
     // Get or create layout session - this persists across renders
     // Layout is cached and reused unless bpPerPx or config changes
-    const session = this.getWorkerSession(renderProps)
+    // getWorkerSession() is declared as returning the base LayoutSessionLike, so
+    // its `layout` comes back base-typed. createLayoutSession() above always
+    // builds a SubtrackLayoutSession, whose layout is the MultiLayout.
+    const session = this.getWorkerSession(
+      renderProps,
+    ) as unknown as SubtrackLayoutSession
     const { layout } = session
 
     // CRITICAL: Clear the region we're about to render to prevent accumulation
@@ -239,9 +244,11 @@ export default class SubtrackFeatureRenderer extends BoxRendererType {
       features,
     })
 
-    // Height is calculated in doAll() and returned in res.height
+    // Height is calculated in doAll() and returned in res.height.
+    // maxHeightReached is NOT set here: doAll does not produce one, and
+    // serializeResultsInWorker derives the real value from the serialized
+    // layout's sublayouts anyway.
     const height = res.height ?? 100
-    const maxHeightReached = res.maxHeightReached || false
 
     return {
       ...res,
@@ -249,7 +256,6 @@ export default class SubtrackFeatureRenderer extends BoxRendererType {
       layout,
       height,
       width,
-      maxHeightReached,
     }
   }
 }

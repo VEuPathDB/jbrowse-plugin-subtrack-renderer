@@ -8,6 +8,7 @@ import { createRenderConfigContext } from './renderConfig'
 import type PluginManager from '@jbrowse/core/PluginManager'
 import type { RenderArgsDeserialized } from '@jbrowse/core/pluggableElementTypes/renderers/BoxRendererType'
 import type { Feature } from '@jbrowse/core/util'
+import type { SubtrackLayout } from './types'
 import type { BaseLayout } from '@jbrowse/core/util/layouts'
 
 /**
@@ -27,7 +28,7 @@ export async function doAll({
   pluginManager,
 }: {
   pluginManager: PluginManager
-  layout: BaseLayout<unknown>
+  layout: SubtrackLayout
   features: Map<string, Feature>
   renderProps: RenderArgsDeserialized
 }) {
@@ -193,7 +194,9 @@ export async function doAll({
         renderArgs: {
           ...renderProps,
           features,
-          layout,
+          // downstream renderArgs are typed against a plain BaseLayout; ours is
+          // the MultiLayout, which they only read opaquely
+          layout: layout as unknown as BaseLayout<unknown>,
           displayMode: configContext.displayMode,
           peptideDataMap,
           colorByCDS: (renderProps as any).colorByCDS,

@@ -12,10 +12,9 @@ import {
 } from './subtrackUtils'
 
 import type { RenderConfigContext } from './renderConfig'
-import type { LayoutRecord } from './types'
+import type { LayoutRecord, SubtrackLayout } from './types'
 import type PluginManager from '@jbrowse/core/PluginManager'
 import type { Feature, Region } from '@jbrowse/core/util'
-import type { BaseLayout } from '@jbrowse/core/util/layouts'
 
 const yPadding = 5
 
@@ -40,7 +39,7 @@ export function layoutFeatures({
   bpPerPx: number
   region: Region
   configContext: RenderConfigContext
-  layout: BaseLayout<unknown>
+  layout: SubtrackLayout
   pluginManager: PluginManager
   subtracks?: Subtrack[]
   subtrackConfig?: SubtrackConfig
@@ -58,19 +57,6 @@ export function layoutFeatures({
     ? calculateSubtrackPositions(subtracks, subtrackConfig)
     : new Map<string, SubtrackInfo>()
 
-  // Debug logging
-  console.log('[SubtrackRenderer] Layout phase:', {
-    totalFeatures: features.size,
-    subtracksEnabled: subtrackConfig.enabled,
-    subtracksConfigured: subtracks.length,
-    visibleSubtracks: subtracks.filter(s => s.visible).map(s => s.label),
-  })
-
-  let filteredCount = 0
-  let matchedCount = 0
-  let debugLabeledFeatureCount = 0
-  let debugFeatureCount = 0
-
   // Get or create cache for this refName
   let refNameCache: Map<string, number> | undefined
   if (subtrackHeightCache) {
@@ -84,22 +70,6 @@ export function layoutFeatures({
   // Layout features into sublayouts (all starting at Y=0, will overlap)
   // yOffsets will be applied later during rendering
   for (const feature of features.values()) {
-    // Debug: Log first few features early to see all processing
-    debugFeatureCount++
-    if (debugFeatureCount <= 5) {
-      const rawName = readConfObject(config, ['labels', 'name'], { feature })
-      const rawDescription = readConfObject(config, ['labels', 'description'], { feature })
-      console.log('[SubtrackRenderer] Early feature inspection:', {
-        count: debugFeatureCount,
-        featureId: feature.id(),
-        featureType: feature.get('type'),
-        rawName,
-        rawDescription,
-        nameType: typeof rawName,
-        descriptionType: typeof rawDescription,
-      })
-    }
-
     // If subtracks are enabled, filter features
     let subtrack: Subtrack | null = null
     let subtrackInfo: SubtrackInfo | undefined
@@ -108,10 +78,8 @@ export function layoutFeatures({
       subtrack = getFeatureSubtrack(feature, subtracks)
       if (!subtrack) {
         // Feature doesn't match any visible subtrack - skip it
-        filteredCount++
         continue
       }
-      matchedCount++
 
       subtrackInfo = subtrackPositions.get(subtrack.label)
       if (!subtrackInfo) {
@@ -155,17 +123,6 @@ export function layoutFeatures({
       description,
     })
 
-    // Debug: Log processed features with labels
-    if (debugFeatureCount <= 5) {
-      console.log('[SubtrackRenderer] Feature after label creation:', {
-        featureId: feature.id(),
-        featureType: feature.get('type'),
-        name,
-        description,
-        floatingLabelsCount: floatingLabels.length,
-      })
-    }
-
     const featureStart = feature.get('start')
     const featureEnd = feature.get('end')
     const leftPaddingBp = featureLayout.leftPadding * bpPerPx
@@ -201,20 +158,6 @@ export function layoutFeatures({
       // Find the maximum relativeY + font height + padding for descenders
       const maxRelativeY = Math.max(...floatingLabels.map(l => l.relativeY))
       floatingLabelsHeight = maxRelativeY + 15 // 11px font height + 4px descenders/padding
-
-      // Debug: Log first few features with labels
-      if (debugLabeledFeatureCount <= 2) {
-        console.log('[SubtrackRenderer] Floating labels height calculation:', {
-          featureId: feature.id(),
-          numLabels: floatingLabels.length,
-          labelDetails: floatingLabels.map(l => ({ text: l.text, relativeY: l.relativeY })),
-          maxRelativeY,
-          floatingLabelsHeight,
-          totalLayoutHeight,
-          yPadding,
-          totalRectHeight: totalLayoutHeight + yPadding + floatingLabelsHeight,
-        })
-      }
     }
 
     // Ensure height is valid - use fallback if NaN
@@ -235,12 +178,15 @@ export function layoutFeatures({
     }
 
     const topPx = layout.addRect(
-      layoutKey,      // layoutName (for MultiLayout) or id (for GranularRectLayout)
-      feature.id(),   // id (only used by MultiLayout)
-      layoutStart,    // left
-      layoutEnd,      // right
-      rectHeight,     // height
-      feature,        // data
+      layoutKey, // layoutName -- MultiLayout takes this leading arg
+      feature.id(), // id
+      layoutStart, // left
+      layoutEnd, // right
+      rectHeight, // height
+      // MultiLayout declares data as Record<string, T>, but it only ever hands
+      // the value straight through to the sublayout, which stores it opaquely.
+      // A Feature is what the glyphs expect to get back out.
+      feature as unknown as Record<string, unknown>, // data
       {
         label: name,
         description,

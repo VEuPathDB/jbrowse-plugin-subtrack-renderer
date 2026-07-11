@@ -2,7 +2,8 @@ import type { RenderConfigContext } from './renderConfig'
 import type PluginManager from '@jbrowse/core/PluginManager'
 import type { AnyConfigurationModel } from '@jbrowse/core/configuration'
 import type { Feature, Region } from '@jbrowse/core/util'
-import type { BaseLayout } from '@jbrowse/core/util/layouts'
+import type { BaseLayout, MultiLayout } from '@jbrowse/core/util/layouts'
+import type GranularRectLayout from '@jbrowse/core/util/layouts/GranularRectLayout'
 import type { Theme } from '@mui/material'
 
 export interface SequenceData {
@@ -65,6 +66,15 @@ export interface Glyph {
   // Optional: indicates this glyph's children should be indexed for hit detection
   hasIndexableChildren?: boolean
 }
+
+/**
+ * The layout the subtrack renderer actually works with. It is always the
+ * MultiLayout built by SubtrackLayoutSession (one sublayout per subtrack), NOT
+ * a plain BaseLayout -- and the two have different addRect() signatures
+ * (MultiLayout takes a leading layoutName). Typing it as BaseLayout shifted
+ * every argument by one and made tsc reject correct calls.
+ */
+export type SubtrackLayout = MultiLayout<GranularRectLayout<unknown>, unknown>
 
 export interface LayoutRecord {
   feature: Feature

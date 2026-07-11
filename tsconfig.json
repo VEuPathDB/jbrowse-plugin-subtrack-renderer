@@ -1,6 +1,10 @@
 {
   "compilerOptions": {
-    "target": "es5",
+    // ES2020 so Map/Set/array iterators can be spread and for..of'd directly.
+    // The old "es5" target made tsc demand --downlevelIteration for perfectly
+    // ordinary iteration, and it was never meaningful here: rollup transpiles
+    // the bundle, and JBrowse 4 targets modern browsers regardless.
+    "target": "ES2020",
     "module": "esnext",
     "lib": ["dom", "esnext"],
     "importHelpers": true,
