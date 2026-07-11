@@ -8,6 +8,7 @@ import { createRenderConfigContext } from './renderConfig'
 import type PluginManager from '@jbrowse/core/PluginManager'
 import type { RenderArgsDeserialized } from '@jbrowse/core/pluggableElementTypes/renderers/BoxRendererType'
 import type { Feature } from '@jbrowse/core/util'
+import type { Subtrack } from './subtrackUtils'
 import type { SubtrackLayout } from './types'
 import type { BaseLayout } from '@jbrowse/core/util/layouts'
 
@@ -43,9 +44,16 @@ export async function doAll({
     width = 800
   }
 
+  // Which subtracks to draw, and in what order, is the display's decision -- it
+  // travels down through renderProps, like subtrackLaneHeights below. Core's
+  // RenderArgsDeserialized has no slot for it, hence the cast. Undefined means
+  // the display never spoke, so the config is used instead.
+  const subtracksOverride = (renderProps as any).subtracks as
+    Subtrack[] | undefined
+
   // Create config context ONCE at the start - this reads all config values upfront
   // to avoid expensive readConfObject calls in per-feature hot paths
-  const configContext = createRenderConfigContext(config)
+  const configContext = createRenderConfigContext(config, subtracksOverride)
 
   // Get subtrack configuration from context
   const { subtracks, subtrackConfig } = configContext

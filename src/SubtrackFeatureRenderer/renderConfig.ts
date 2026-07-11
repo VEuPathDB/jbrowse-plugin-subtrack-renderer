@@ -91,6 +91,7 @@ export interface RenderConfigContext {
 
 export function createRenderConfigContext(
   config: AnyConfigurationModel,
+  subtracksOverride?: Subtrack[],
 ): RenderConfigContext {
   const displayMode = readConfObject(config, 'displayMode') as string
 
@@ -119,7 +120,15 @@ export function createRenderConfigContext(
     labelAllowed: displayMode !== 'collapse',
 
     // Subtrack configuration
-    subtracks: (readConfObject(config, 'subtracks') || []) as Subtrack[],
+    //
+    // The display owns which subtracks are shown and in what order, and hands
+    // the resolved list down through renderProps. The config fallback keeps the
+    // renderer usable standalone (and keeps the image snapshot tests green).
+    // Note `??`, not `||` -- an empty override means "the user deselected
+    // everything", which is a real answer, not a missing one.
+    subtracks:
+      subtracksOverride ??
+      ((readConfObject(config, 'subtracks') || []) as Subtrack[]),
     subtrackConfig: {
       enabled: readConfObject(config, ['subtrackConfig', 'enabled']) as boolean,
       perSubtrackHeight: readConfObject(config, [

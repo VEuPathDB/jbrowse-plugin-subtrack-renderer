@@ -1,6 +1,10 @@
-import { readCachedConfig } from './renderConfig'
+import PluginManager from '@jbrowse/core/PluginManager'
+
+import configSchema from './configSchema'
+import { createRenderConfigContext, readCachedConfig } from './renderConfig'
 
 import type { CachedConfig } from './renderConfig'
+import type { Subtrack } from './subtrackUtils'
 
 describe('CachedConfig', () => {
   describe('readCachedConfig', () => {
@@ -85,5 +89,50 @@ describe('CachedConfig', () => {
       expect(config.value).toBe('defaultValue')
       expect(config.isCallback).toBe(true)
     })
+  })
+})
+
+describe('createRenderConfigContext subtracks', () => {
+  const pluginManager = new PluginManager([])
+  pluginManager.configure()
+
+  const CONFIG_SUBTRACKS: Subtrack[] = [
+    { label: 'FromConfig', featureFilters: { type: 'gene' }, visible: true },
+  ]
+
+  function makeConfig() {
+    return configSchema.create(
+      {
+        subtracks: CONFIG_SUBTRACKS,
+        subtrackConfig: { enabled: true },
+      },
+      { pluginManager },
+    )
+  }
+
+  it('falls back to the config when no override is supplied', () => {
+    const ctx = createRenderConfigContext(makeConfig())
+
+    expect(ctx.subtracks.map(s => s.label)).toEqual(['FromConfig'])
+  })
+
+  it('prefers the override supplied by the display', () => {
+    const override: Subtrack[] = [
+      {
+        label: 'FromDisplay',
+        featureFilters: { type: 'match' },
+        visible: true,
+      },
+    ]
+
+    const ctx = createRenderConfigContext(makeConfig(), override)
+
+    expect(ctx.subtracks.map(s => s.label)).toEqual(['FromDisplay'])
+  })
+
+  it('treats an empty override as a real choice, not as absent', () => {
+    const ctx = createRenderConfigContext(makeConfig(), [])
+
+    expect(ctx.subtracks).toEqual([])
   })
 })

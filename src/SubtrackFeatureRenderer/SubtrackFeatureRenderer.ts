@@ -8,6 +8,7 @@ import { doAll } from './doAll'
 import { buildLayoutKey } from './subtrackUtils'
 
 import type { RenderArgsDeserialized } from '@jbrowse/core/pluggableElementTypes/renderers/BoxRendererType'
+import type { Subtrack } from './subtrackUtils'
 import type { SerializedLayout } from '@jbrowse/core/util/layouts/BaseLayout'
 import type { AnyConfigurationModel } from '@jbrowse/core/configuration'
 import type { Region } from '@jbrowse/core/util'
@@ -225,8 +226,15 @@ export default class SubtrackFeatureRenderer extends BoxRendererType {
     // Get expanded region for clearing (includes padding for labels/glyphs)
     const expandedRegion = this.getExpandedRegion(region, renderProps)
 
-    // Get subtrack names from config and clear each sublayout
-    const subtracks = readConfObject(config, 'subtracks') || []
+    // Clear exactly the lanes doAll is about to lay out -- which means resolving
+    // the subtrack list the SAME way it does: the display's choice from
+    // renderProps first, the config only as a fallback. Clearing by the config
+    // list instead would discard ranges for lanes we no longer draw AND skip the
+    // sublayout of a lane the user just switched on, leaving stale rectangles in
+    // it that accumulate across renders.
+    const subtracks = ((renderProps as any).subtracks ??
+      readConfObject(config, 'subtracks') ??
+      []) as Subtrack[]
     for (const subtrack of subtracks) {
       if (subtrack.visible !== false) {
         // Use the same buildLayoutKey function that layoutFeatures uses
