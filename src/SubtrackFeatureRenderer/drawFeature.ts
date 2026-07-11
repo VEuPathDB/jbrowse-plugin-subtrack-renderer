@@ -2,13 +2,13 @@ import { boxGlyph, builtinGlyphs } from './glyphs'
 
 import type { DrawContext, FeatureLayout, Glyph } from './types'
 import type PluginManager from '@jbrowse/core/PluginManager'
-import type { Feature } from '@jbrowse/core/util'
+import type GlyphType from '@jbrowse/core/pluggableElementTypes/GlyphType'
 
-interface GlyphType {
-  priority: number
-  match?: (feature: Feature) => boolean
-  draw?: (args: any) => void
-}
+// Use core's GlyphType rather than a hand-rolled mirror. The local copy declared
+// `draw?` as optional, which is not true -- GlyphType's constructor assigns
+// `this.draw = args.draw` from a required arg, so a registered glyph always has
+// one. Only `match` is optional. Declaring draw optional was what made tsc flag
+// the call below as invoking a possibly-undefined value.
 
 // Auto-generate glyph map from builtin glyphs
 const glyphMap: Record<string, Glyph> = Object.fromEntries(

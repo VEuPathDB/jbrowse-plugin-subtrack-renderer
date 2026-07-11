@@ -5,12 +5,11 @@ import type { RenderConfigContext } from './renderConfig'
 import type { FeatureLayout, LayoutArgs } from './types'
 import type PluginManager from '@jbrowse/core/PluginManager'
 import type { Feature } from '@jbrowse/core/util'
+import type GlyphType from '@jbrowse/core/pluggableElementTypes/GlyphType'
 
-interface GlyphType {
-  priority: number
-  match?: (feature: Feature) => boolean
-  getHeightMultiplier?: (feature: Feature, config: any) => number
-}
+// Uses core's GlyphType rather than a second hand-rolled mirror -- see the note
+// in drawFeature.ts. Keeping a local copy here is how the two drifted apart from
+// core in the first place.
 
 // Re-export for backwards compatibility
 export { applyLabelDimensions } from './labelUtils'
