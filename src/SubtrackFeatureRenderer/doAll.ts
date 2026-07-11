@@ -66,22 +66,41 @@ export async function doAll({
     },
   )
 
-  // How tall this block's content actually needs each lane to be. This is a
-  // pure function of the features in THIS block -- it does not depend on the
-  // geometry we are handed below, which is what lets the display converge:
-  // geometry changes never change the reported need.
+  // How tall this block's content actually needs each lane to be.
+  //
+  // This MUST be derived from the rectangles laid out for THIS block, not from
+  // sublayout.getTotalHeight(). GranularRectLayout keeps pTotalHeight as a
+  // monotonic high-water mark (`pTotalHeight = max(pTotalHeight, top + height)`)
+  // and discardRange() never lowers it -- and the layout is only rebuilt when
+  // bpPerPx changes. So across a pan the sublayout total reflects every region
+  // ever laid out at this zoom, and can only grow. Reading it here is what made
+  // lanes expand when panning into dense sequence and then refuse to shrink on
+  // the way back.
+  //
+  // Measuring our own records keeps the reported height a pure function of this
+  // block's features, which is the property the display's convergence relies on.
   const subtrackContentHeights: Record<string, number> = {}
 
-  if (subtrackConfig.enabled && 'subLayouts' in layout) {
+  if (subtrackConfig.enabled) {
     for (const subtrack of subtracks) {
       if (subtrack.visible === false) {
         continue
       }
-      const layoutKey = `${region.refName}:${subtrack.label}`
-      const sublayout = (layout as any).subLayouts?.get(layoutKey)
-      const h = sublayout?.getTotalHeight?.()
-      subtrackContentHeights[subtrack.label] =
-        Number.isFinite(h) && h > 0 ? h : 0
+      subtrackContentHeights[subtrack.label] = 0
+    }
+    for (const rec of layoutRecords) {
+      const label = rec.subtrackLabel
+      if (label === undefined || !(label in subtrackContentHeights)) {
+        continue
+      }
+      const h = rec.layout?.totalLayoutHeight || rec.layout?.height || 0
+      const bottom = (rec.topPx || 0) + h
+      if (Number.isFinite(bottom)) {
+        subtrackContentHeights[label] = Math.max(
+          subtrackContentHeights[label] ?? 0,
+          bottom,
+        )
+      }
     }
   }
 

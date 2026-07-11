@@ -267,49 +267,10 @@ export function layoutFeatures({
     }
   }
 
-  // After all features are laid out, calculate yOffsets based on sublayout heights
-  if (subtrackConfig.enabled) {
-    let currentY = 0
-    for (const subtrack of subtracks) {
-      if (!subtrack.visible) {
-        continue
-      }
-
-      const layoutKey = buildLayoutKey(region.refName, subtrack.label)
-
-      // Query actual height from the persistent sublayout
-      let actualHeight = 0
-      if ('getSublayout' in layout) {
-        try {
-          const sublayout = (layout as any).getSublayout(layoutKey)
-          if (sublayout && typeof sublayout.getTotalHeight === 'function') {
-            const sublayoutHeight = sublayout.getTotalHeight()
-            // getTotalHeight() returns NaN for an empty sublayout
-            if (Number.isFinite(sublayoutHeight) && sublayoutHeight > 0) {
-              actualHeight = sublayoutHeight
-            }
-          }
-        } catch (e) {
-          console.warn('[SubtrackRenderer] Failed to query sublayout height:', e)
-        }
-      }
-
-      // Lanes size to their content; perSubtrackHeight is only the fallback for
-      // when the layout has not reported a height yet. See doAll.ts.
-      const height = actualHeight
-        ? Math.max(actualHeight, subtrackConfig.minSubtrackHeight)
-        : subtrackConfig.perSubtrackHeight
-
-      subtrackPositions.set(subtrack.label, {
-        label: subtrack.label,
-        yOffset: currentY,
-        height,
-        visible: true,
-      })
-
-      currentY += height + subtrackConfig.spacing
-    }
-  }
+  // Lane yOffsets are deliberately NOT computed here. Lane geometry is shared
+  // by every block in the visible region, so it is owned by the display and
+  // handed to doAll() via renderProps -- see doAll.ts. This function only lays
+  // features out within their own lane (topPx is sublayout-relative).
 
   return { layoutRecords, subtrackPositions }
 }
