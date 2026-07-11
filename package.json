@@ -41,6 +41,7 @@
     "jbrowse:configure": "shx cp jbrowse_config.json .jbrowse/config.json",
     "jbrowse:serve": "cross-var serve --listen $npm_package_config_browse_port .jbrowse",
     "test": "jest",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
     "test:e2e": "cross-var start-test \"npm-run-all --parallel start browse\" \"$npm_package_config_port|$npm_package_config_browse_port\" \"npm-run-all cypress:run\"",
     "cypress:run": "cross-var cypress run --headless --browser chrome --config baseUrl=http://localhost:$npm_package_config_browse_port",
     "cypress:open": "cross-var cypress open --config baseUrl=http://localhost:$npm_package_config_browse_port",
