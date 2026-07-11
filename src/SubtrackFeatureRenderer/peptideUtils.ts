@@ -69,7 +69,7 @@ function isTranscriptType(
 /**
  * Check if a feature has CDS subfeatures
  */
-export function hasCDSSubfeatures(feature: Feature): boolean {
+function hasCDSSubfeatures(feature: Feature): boolean {
   const subfeatures = feature.get('subfeatures')
   return subfeatures?.some((sub: Feature) => sub.get('type') === 'CDS') ?? false
 }
@@ -78,7 +78,7 @@ export function hasCDSSubfeatures(feature: Feature): boolean {
  * Find all transcript features with CDS subfeatures
  * Handles both direct transcript features and transcripts nested in genes
  */
-export function findTranscriptsWithCDS(
+function findTranscriptsWithCDS(
   features: Map<string, Feature>,
 ): Feature[] {
   const transcripts: Feature[] = []
@@ -108,7 +108,7 @@ export function findTranscriptsWithCDS(
 /**
  * Process feature subfeatures to extract CDS regions
  */
-export function extractCDSRegions(
+function extractCDSRegions(
   feature: Feature,
 ): { start: number; end: number }[] {
   const subfeatures = feature.get('subfeatures') || []

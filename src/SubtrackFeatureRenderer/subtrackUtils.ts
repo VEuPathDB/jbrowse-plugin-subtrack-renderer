@@ -28,7 +28,7 @@ export interface SubtrackInfo {
  * Test if a feature matches a subtrack's filter criteria
  * Returns true if ALL filter criteria match
  */
-export function featureMatchesSubtrack(
+function featureMatchesSubtrack(
   feature: Feature,
   subtrack: Subtrack,
 ): boolean {
