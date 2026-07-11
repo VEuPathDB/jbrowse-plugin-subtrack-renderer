@@ -4,11 +4,11 @@ import { layoutFeatures } from './layoutFeatures'
 import { makeImageData } from './makeImageData'
 import { fetchPeptideData } from './peptideUtils'
 import { createRenderConfigContext } from './renderConfig'
-import { resolveRenderSubtracks } from './subtrackUtils'
 
 import type PluginManager from '@jbrowse/core/PluginManager'
 import type { RenderArgsDeserialized } from '@jbrowse/core/pluggableElementTypes/renderers/BoxRendererType'
 import type { Feature } from '@jbrowse/core/util'
+import type { RenderSubtrackArgs } from './subtrackUtils'
 import type { SubtrackLayout } from './types'
 import type { BaseLayout } from '@jbrowse/core/util/layouts'
 
@@ -45,14 +45,17 @@ export async function doAll({
   }
 
   // Which subtracks to draw, and in what order, is the display's decision -- it
-  // travels down through renderProps, like subtrackLaneHeights below. The
-  // clearing loop in SubtrackFeatureRenderer.render() resolves it through this
-  // same helper, so the set we clear cannot drift from the set we lay out.
-  const resolvedSubtracks = resolveRenderSubtracks(renderProps)
+  // travels down through renderProps, like subtrackLaneHeights below. We pass the
+  // RAW selection (undefined when there is no display) and let
+  // createRenderConfigContext resolve it against the config catalog, so the
+  // fallback is applied in exactly one place. It resolves via the same
+  // resolveRenderSubtracks the clearing loop in SubtrackFeatureRenderer.render()
+  // uses, so the set we clear cannot drift from the set we lay out.
+  const { subtracks: subtracksOverride } = renderProps as RenderSubtrackArgs
 
   // Create config context ONCE at the start - this reads all config values upfront
   // to avoid expensive readConfObject calls in per-feature hot paths
-  const configContext = createRenderConfigContext(config, resolvedSubtracks)
+  const configContext = createRenderConfigContext(config, subtracksOverride)
 
   // Get subtrack configuration from context
   const { subtracks, subtrackConfig } = configContext
