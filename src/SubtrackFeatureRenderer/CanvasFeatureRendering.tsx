@@ -8,6 +8,18 @@ import { observer } from 'mobx-react'
 import type { FlatbushItem, SubfeatureInfo } from './types'
 import type { Region } from '@jbrowse/core/util/types'
 
+/**
+ * Structural mirror of the bits of BaseLinearDisplay this component touches.
+ * It is hand-written rather than imported because
+ * @jbrowse/plugin-linear-genome-view is not on core's ReExports list -- importing
+ * it would bundle a duplicate copy of that plugin into this one.
+ *
+ * The cost is that it can silently drift from the real model, and it had: the
+ * two *ById methods gained a third `topLevelFeatureId` argument in core, which
+ * this component was already passing (correctly -- the runtime model has taken
+ * it since at least v4.3.0) while the interface still declared two. Keep this in
+ * step with plugins/linear-genome-view/src/BaseLinearDisplay/model.ts.
+ */
 interface DisplayModel {
   selectedFeatureId?: string
   featureIdUnderMouse?: string
@@ -17,9 +29,17 @@ interface DisplayModel {
   setFeatureIdUnderMouse: (id: string | undefined) => void
   setSubfeatureIdUnderMouse: (id: string | undefined) => void
   setMouseoverExtraInformation: (info: unknown) => void
-  selectFeatureById: (featureId: string, parentFeatureId?: string) => Promise<void>
+  selectFeatureById: (
+    featureId: string,
+    parentFeatureId?: string,
+    topLevelFeatureId?: string,
+  ) => Promise<void>
   clearFeatureSelection: () => void
-  setContextMenuFeatureById: (featureId: string, parentFeatureId?: string) => Promise<void>
+  setContextMenuFeatureById: (
+    featureId: string,
+    parentFeatureId?: string,
+    topLevelFeatureId?: string,
+  ) => Promise<void>
 }
 
 const CanvasFeatureRendering = observer(function CanvasFeatureRendering(props: {
