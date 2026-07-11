@@ -28,10 +28,6 @@ export function facetedSubtrackModelF() {
        * ordered ids of the selected lanes, top to bottom
        */
       selected: types.array(types.string),
-      /**
-       * #property
-       */
-      filterText: types.optional(types.string, ''),
     })
     .volatile(() => ({
       /**
@@ -40,15 +36,28 @@ export function facetedSubtrackModelF() {
       rows: [] as SubtrackRow[],
       /**
        * #volatile
+       * filter state is volatile, not a property: the dialog is a transaction,
+       * so snapshotting half of it (text but not facets) would be arbitrary
+       */
+      filterText: '',
+      /**
+       * #volatile
        */
       filters: observable.map<string, string[]>(),
     }))
     .actions(self => ({
       /**
        * #action
+       * Reconciles the selection against the new catalog. A selected id with no
+       * matching row is a phantom lane: invisible in the table, impossible to
+       * uncheck, yet still counted by canApply and still shipped to the display
+       * on Apply. A catalog that changed under an open dialog produces exactly
+       * that, so drop the unknowns here.
        */
       setRows(rows: SubtrackRow[]) {
         self.rows = rows
+        const known = new Set(rows.map(r => r.id))
+        self.selected.replace(self.selected.filter(id => known.has(id)))
       },
       /**
        * #action
@@ -110,6 +119,16 @@ export function facetedSubtrackModelF() {
        */
       get selectedSet() {
         return new Set(self.selected)
+      },
+      /**
+       * #getter
+       * the selected rows in lane order -- setRows guarantees every id resolves
+       */
+      get selectedRows(): SubtrackRow[] {
+        const byId = new Map(self.rows.map(r => [r.id, r]))
+        return self.selected
+          .map(id => byId.get(id))
+          .filter((r): r is SubtrackRow => r !== undefined)
       },
       /**
        * #getter

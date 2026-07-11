@@ -49,51 +49,54 @@ export function getFacetKeys(rows: SubtrackRow[]): string[] {
 }
 
 /**
- * Counts per value, per facet, with drill-down semantics copied from JBrowse 2's
- * FacetFilters.tsx: facets that already have an active filter are counted
- * against the row set as it stood BEFORE that filter was applied. Otherwise
- * selecting "P. falciparum" would show every other organism with a count of
- * zero, and the user could never widen the selection again.
+ * Counts per value, per facet, with drill-down semantics: each facet is counted
+ * against the rows surviving every OTHER active filter, but not its own.
+ * Otherwise selecting "P. falciparum" would show every other organism with a
+ * count of zero, and the user could never widen the selection again.
+ *
+ * WE DIVERGE FROM JBROWSE 2's FacetFilters.tsx ON PURPOSE HERE. Upstream walks
+ * the facets in sequence, narrowing an accumulator as it goes, so facet `Ai` is
+ * counted against the filters of `A1..A(i-1)` only -- it never sees the filters
+ * of the facets AFTER it. With two or more active facets that means only the
+ * last one gets correct counts, and which facet that is falls out of the
+ * alphabetical sort of the keys. Concretely: with organism=[P. falciparum] and
+ * study=[Ref] both active, the organism facet advertises "P. vivax (2)" while
+ * clicking it actually yields 1 row. Sibling counts are exactly what the user
+ * steers by, so a lying count is worse than no count.
+ *
+ * The version below is order-independent: it re-derives the visible row set per
+ * facet rather than accumulating. Do not "restore fidelity" with upstream here.
  */
 export function getFacetCounts(
   rows: SubtrackRow[],
   facetKeys: string[],
   filters: Map<string, string[]>,
 ): Map<string, Map<string, number>> {
-  const counts = new Map(
-    facetKeys.map(key => [key, new Map<string, number>()] as const),
-  )
+  const active = [...filters.entries()]
+    .filter(([, values]) => values.length > 0)
+    .map(([key, values]) => [key, new Set(values)] as const)
 
-  // active facets first, so each is counted before its own filter narrows things
-  const ordered = [
-    ...facetKeys.filter(key => filters.get(key)?.length),
-    ...facetKeys.filter(key => !filters.get(key)?.length),
-  ]
-
-  let current = rows
-  for (const key of ordered) {
-    const counter = counts.get(key)
-    if (!counter) {
-      continue
-    }
-    for (const row of current) {
-      const value = row.fields[key]
-      if (value) {
-        counter.set(value, (counter.get(value) ?? 0) + 1)
-      }
-    }
-
-    const selected = filters.get(key)
-    if (selected?.length) {
-      const selectedSet = new Set(selected)
-      current = current.filter(row => {
+  return new Map(
+    facetKeys.map(key => {
+      const counter = new Map<string, number>()
+      for (const row of rows) {
+        const visible = active.every(([k, values]) => {
+          if (k === key) {
+            return true
+          }
+          const v = row.fields[k]
+          return v !== undefined && values.has(v)
+        })
+        // note `!== undefined`, not a truthy check: an empty-string field value
+        // is filterable, so it must be countable too
         const value = row.fields[key]
-        return value !== undefined && selectedSet.has(value)
-      })
-    }
-  }
-
-  return counts
+        if (visible && value !== undefined) {
+          counter.set(value, (counter.get(value) ?? 0) + 1)
+        }
+      }
+      return [key, counter] as const
+    }),
+  )
 }
 
 /** Rows surviving the text search and every active facet filter. */

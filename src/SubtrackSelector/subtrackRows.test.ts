@@ -1,4 +1,9 @@
-import { getFacetCounts, getFacetKeys, toRows } from './subtrackRows'
+import {
+  filterRows,
+  getFacetCounts,
+  getFacetKeys,
+  toRows,
+} from './subtrackRows'
 
 import type { Subtrack } from '../SubtrackFeatureRenderer/subtrackUtils'
 
@@ -126,5 +131,105 @@ describe('getFacetCounts', () => {
         ['Cross', 1],
       ]),
     )
+  })
+
+  it('counts a facet against EVERY other active filter, not just the earlier ones', () => {
+    // the regression guard for the bug we inherited from JBrowse 2's
+    // FacetFilters.tsx: it narrows an accumulator in key order, so `organism`
+    // (sorted first) never saw the `study` filter and advertised "P. vivax (2)"
+    // when clicking it would in fact yield 1 row
+    const square = toRows([
+      {
+        label: 'Pf Ref',
+        featureFilters: { organism: 'P. falciparum' },
+        metadata: { study: 'Ref' },
+        visible: true,
+      },
+      {
+        label: 'Pf Cross',
+        featureFilters: { organism: 'P. falciparum' },
+        metadata: { study: 'Cross' },
+        visible: true,
+      },
+      {
+        label: 'Pv Ref',
+        featureFilters: { organism: 'P. vivax' },
+        metadata: { study: 'Ref' },
+        visible: true,
+      },
+      {
+        label: 'Pv Cross',
+        featureFilters: { organism: 'P. vivax' },
+        metadata: { study: 'Cross' },
+        visible: true,
+      },
+    ])
+    const filters = new Map([
+      ['organism', ['P. falciparum']],
+      ['study', ['Ref']],
+    ])
+
+    const counts = getFacetCounts(square, getFacetKeys(square), filters)
+
+    // organism is counted against study=Ref, ignoring only its own filter
+    expect(counts.get('organism')).toEqual(
+      new Map([
+        ['P. falciparum', 1],
+        ['P. vivax', 1],
+      ]),
+    )
+    // and study is counted against organism=P. falciparum, symmetrically
+    expect(counts.get('study')).toEqual(
+      new Map([
+        ['Ref', 1],
+        ['Cross', 1],
+      ]),
+    )
+  })
+})
+
+describe('filterRows', () => {
+  const rows = toRows(CATALOG)
+
+  it('drops a row that lacks the filtered facet key entirely', () => {
+    // metadata is optional, so heterogeneous catalogs are normal
+    const mixed = toRows([
+      ...CATALOG,
+      {
+        label: 'No study',
+        featureFilters: { organism: 'P. vivax' },
+        visible: true,
+      },
+    ])
+
+    const filtered = filterRows(mixed, '', new Map([['study', ['Ref']]]))
+
+    expect(filtered.map(r => r.id)).toEqual(['Pf 3D7', 'Pv Sal-1'])
+  })
+
+  it('treats an empty values array as an inactive facet', () => {
+    // what unchecking the last box in a facet produces
+    const filtered = filterRows(rows, '', new Map([['organism', []]]))
+
+    expect(filtered).toHaveLength(3)
+  })
+
+  it('ORs multiple values within one facet', () => {
+    const filtered = filterRows(
+      rows,
+      '',
+      new Map([['organism', ['P. falciparum', 'P. vivax']]]),
+    )
+
+    expect(filtered).toHaveLength(3)
+  })
+
+  it('matches text case-insensitively across name and fields', () => {
+    expect(filterRows(rows, 'sAl-1', new Map()).map(r => r.id)).toEqual([
+      'Pv Sal-1',
+    ])
+    expect(filterRows(rows, 'CROSS', new Map()).map(r => r.id)).toEqual([
+      'Pf HB3',
+    ])
   })
 })

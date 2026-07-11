@@ -52,11 +52,25 @@ describe('facetedSubtrackModel', () => {
   })
 
   it('moves a lane to a new position', () => {
-    const model = make(['a', 'b', 'c'])
+    const model = make(['Pf 3D7', 'Pf HB3', 'Pv Sal-1'])
 
     model.move(2, 0)
 
-    expect(model.selected.slice()).toEqual(['c', 'a', 'b'])
+    expect(model.selected.slice()).toEqual(['Pv Sal-1', 'Pf 3D7', 'Pf HB3'])
+  })
+
+  it('drops selected ids that no longer exist in the catalog', () => {
+    // a phantom lane -- invisible in the table, impossible to uncheck, yet still
+    // counted by canApply and still shipped to the display on Apply
+    const model = make(['Pf 3D7', 'Pf 7G8-retired'])
+
+    expect(model.selected.slice()).toEqual(['Pf 3D7'])
+  })
+
+  it('resolves the selected ids to rows in lane order', () => {
+    const model = make(['Pv Sal-1', 'Pf 3D7'])
+
+    expect(model.selectedRows.map(r => r.name)).toEqual(['Pv Sal-1', 'Pf 3D7'])
   })
 
   it('filters rows by text across name and every field', () => {
