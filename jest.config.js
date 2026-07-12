@@ -8,6 +8,13 @@ module.exports = {
   resolver: '<rootDir>/jest.resolver.js',
   setupFiles: ['<rootDir>/jest.setup.js'],
 
+  // Feature branches live in .worktrees/ (see .gitignore). Jest only ignores
+  // node_modules by default, so without this it collects each test twice -- once
+  // from src/ and once from every worktree -- silently doubling the reported
+  // counts and the runtime.
+  testPathIgnorePatterns: ['/node_modules/', '/\\.worktrees/'],
+  modulePathIgnorePatterns: ['/\\.worktrees/'],
+
   // Having resolved @jbrowse/* to ESM, it has to be down-levelled to CJS. jest
   // does not transform node_modules by default, so allow the @jbrowse packages
   // and the ESM-only libraries they pull in through.
