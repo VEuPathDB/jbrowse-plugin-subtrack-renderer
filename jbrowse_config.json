@@ -1,0 +1,177 @@
+{
+  "configuration": {
+    "rpc": {
+      "defaultDriver": "WebWorkerRpcDriver"
+    }
+  },
+  "assemblies": [
+    {
+      "name": "hg38",
+      "aliases": [
+        "GRCh38"
+      ],
+      "sequence": {
+        "type": "ReferenceSequenceTrack",
+        "trackId": "hg38-ReferenceSequenceTrack",
+        "adapter": {
+          "type": "BgzipFastaAdapter",
+          "fastaLocation": {
+            "uri": "https://s3.amazonaws.com/jbrowse.org/genomes/GRCh38/fasta/GRCh38.fa.gz",
+            "locationType": "UriLocation"
+          },
+          "faiLocation": {
+            "uri": "https://s3.amazonaws.com/jbrowse.org/genomes/GRCh38/fasta/GRCh38.fa.gz.fai",
+            "locationType": "UriLocation"
+          },
+          "gziLocation": {
+            "uri": "https://s3.amazonaws.com/jbrowse.org/genomes/GRCh38/fasta/GRCh38.fa.gz.gzi",
+            "locationType": "UriLocation"
+          }
+        }
+      }
+    }
+  ],
+  "tracks": [
+    {
+      "type": "FeatureTrack",
+      "trackId": "ncbi_refseq_standard",
+      "name": "NCBI RefSeq (Standard)",
+      "assemblyNames": [
+        "hg38"
+      ],
+      "category": [
+        "Annotation"
+      ],
+      "adapter": {
+        "type": "Gff3TabixAdapter",
+        "gffGzLocation": {
+          "uri": "https://s3.amazonaws.com/jbrowse.org/genomes/GRCh38/ncbi_refseq/GCA_000001405.15_GRCh38_full_analysis_set.refseq_annotation.sorted.gff.gz",
+          "locationType": "UriLocation"
+        },
+        "index": {
+          "location": {
+            "uri": "https://s3.amazonaws.com/jbrowse.org/genomes/GRCh38/ncbi_refseq/GCA_000001405.15_GRCh38_full_analysis_set.refseq_annotation.sorted.gff.gz.tbi",
+            "locationType": "UriLocation"
+          }
+        }
+      }
+    },
+    {
+      "type": "FeatureTrack",
+      "trackId": "ncbi_refseq_subtrack",
+      "name": "NCBI RefSeq (Subtrack)",
+      "assemblyNames": [
+        "hg38"
+      ],
+      "category": [
+        "Annotation"
+      ],
+      "adapter": {
+        "type": "Gff3TabixAdapter",
+        "gffGzLocation": {
+          "uri": "https://s3.amazonaws.com/jbrowse.org/genomes/GRCh38/ncbi_refseq/GCA_000001405.15_GRCh38_full_analysis_set.refseq_annotation.sorted.gff.gz",
+          "locationType": "UriLocation"
+        },
+        "index": {
+          "location": {
+            "uri": "https://s3.amazonaws.com/jbrowse.org/genomes/GRCh38/ncbi_refseq/GCA_000001405.15_GRCh38_full_analysis_set.refseq_annotation.sorted.gff.gz.tbi",
+            "locationType": "UriLocation"
+          }
+        }
+      },
+      "displays": [
+        {
+          "type": "SubtrackFeatureDisplay",
+          "displayId": "ncbi_refseq_subtrack-SubtrackFeatureDisplay",
+          "renderer": {
+            "type": "SubtrackFeatureRenderer",
+            "subtrackConfig": {
+              "enabled": true,
+              "spacing": 8,
+              "showLabels": true,
+              "minSubtrackHeight": 20
+            },
+            "subtracks": [
+              {
+                "label": "Genes",
+                "featureFilters": {
+                  "type": "gene"
+                },
+                "visible": true
+              },
+              {
+                "label": "Regions",
+                "featureFilters": {
+                  "type": "region"
+                },
+                "visible": true
+              },
+              {
+                "label": "Matches",
+                "featureFilters": {
+                  "type": "match"
+                },
+                "visible": true
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "defaultSession": {
+    "name": "Subtrack Renderer Demo",
+    "views": [
+      {
+        "id": "linearGenomeView",
+        "type": "LinearGenomeView",
+        "displayedRegions": [
+          {
+            "refName": "chr1",
+            "start": 1000000,
+            "end": 1100000,
+            "assemblyName": "hg38"
+          }
+        ],
+        "tracks": [
+          {
+            "type": "ReferenceSequenceTrack",
+            "configuration": "hg38-ReferenceSequenceTrack",
+            "displays": [
+              {
+                "type": "LinearReferenceSequenceDisplay",
+                "configuration": "hg38-ReferenceSequenceTrack-LinearReferenceSequenceDisplay"
+              }
+            ]
+          },
+          {
+            "type": "FeatureTrack",
+            "configuration": "ncbi_refseq_standard",
+            "displays": [
+              {
+                "type": "LinearBasicDisplay",
+                "configuration": "ncbi_refseq_standard-LinearBasicDisplay"
+              }
+            ]
+          },
+          {
+            "type": "FeatureTrack",
+            "configuration": "ncbi_refseq_subtrack",
+            "displays": [
+              {
+                "type": "SubtrackFeatureDisplay",
+                "configuration": "ncbi_refseq_subtrack-SubtrackFeatureDisplay"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "plugins": [
+    {
+      "name": "SubtrackRenderer",
+      "url": "http://localhost:9002/dist/jbrowse-plugin-subtrack-renderer.umd.development.js"
+    }
+  ]
+}
