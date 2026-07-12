@@ -258,6 +258,55 @@ geometry. We are now also making it the row id and the selection token, so:
 dedupe on catalog read, warn once. This is a latent bug we are not introducing,
 but should stop pretending is not there.
 
+**Hiding a lane can move features rather than remove them.** `getFeatureSubtrack`
+returns the *first* matching subtrack, so a feature matching both "Genes" and a
+catch-all lane does not disappear when "Genes" is deselected -- it re-bins into
+the catch-all. Deselecting means "remove this lane from the matching order", not
+"hide these features". JBrowse 1 behaved identically, so this is faithful to the
+port, but it will surprise a user and is worth saying out loud.
+
+**Facet counts: we deliberately diverge from upstream.** JBrowse 2's
+`FacetFilters.tsx` narrows the row set sequentially as it walks the active
+facets, so facet *i* is counted against rows filtered by facets *1..i-1* only,
+missing the filters of *i+1..n*. Only the **last** active facet gets correct
+counts, and which one that is depends on alphabetical key order. With two facets
+active, a value can advertise a count of 2 and return 1 row when clicked. Sibling
+counts are what the user steers by, so a count that lies is worse than no count.
+Our `getFacetCounts` counts each facet against the rows surviving every *other*
+active filter: order-independent and correct. **A knowing divergence, not a
+porting error** -- see the Follow-on.
+
+## Filter, sort, and select are three independent operations
+
+This is the property from JBrowse 1 that most needed preserving, and the one its
+ordering bug obscured.
+
+**Filtering never touches the selection.** Facet filters and the text search feed
+`filteredRows`, which is *only* what the table displays. Check a lane, then filter
+it out of view, and it stays checked, stays in the Lanes pane, and stays in its
+position. Enforced by a test (`filtering the table never disturbs the lane order`).
+The one place the selection is pruned is `setRows`, which runs once on open against
+the full catalog, never against the filtered view.
+
+**Sorting never touches the selection or the catalog order.** Column sort is a
+browsing aid for a long catalog. It reorders `displayRows` -- a view -- and must
+never reorder `rows`, which stays in catalog order permanently, because catalog
+order is the reference frame the default lane order depends on.
+
+**Lane order defaults to catalog order, and drag overrides it.** JBrowse 1 ordered
+lanes by the sequence in which their checkboxes were clicked, which is arbitrary
+and was invisible until you closed the dialog. Instead:
+
+- while the selection is still in catalog order, a newly checked lane slots into
+  its catalog position;
+- once the user has dragged anything, the selection is a hand-made arrangement,
+  so a newly checked lane appends to the bottom, where it is visible and can be
+  dragged. Any catalog-derived insertion point would be arbitrary at that point,
+  and silently disturbing a manual arrangement is worse than appending.
+
+The Lanes pane makes the resulting order visible at all times, which is the real
+fix -- JBrowse 1's order was not just arbitrary, it was unseen.
+
 ## Testing
 
 Pure functions carry the logic and get plain unit tests:
