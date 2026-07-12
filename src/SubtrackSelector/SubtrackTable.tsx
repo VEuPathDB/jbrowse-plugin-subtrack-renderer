@@ -105,7 +105,14 @@ const SubtrackTable = observer(function SubtrackTable({
                     onChange={() => {
                       model.toggle(row.id)
                     }}
-                    inputProps={{ 'aria-label': row.name }}
+                    // slotProps, NOT inputProps. `inputProps` was removed in MUI
+                    // 9, and at runtime @mui/material is externalised to the
+                    // HOST's copy -- which for a jbrowse-components checkout on
+                    // main is MUI 9, while this plugin's own devDependency (what
+                    // jest renders against) is MUI 7. So inputProps passed every
+                    // test and silently dropped the accessible name in the real
+                    // browser. slotProps.input works on both.
+                    slotProps={{ input: { 'aria-label': row.name } }}
                   />
                 </TableCell>
                 <TableCell>{row.name}</TableCell>

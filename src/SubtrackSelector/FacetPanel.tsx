@@ -42,7 +42,7 @@ const FacetPanel = observer(function FacetPanel({
               multiple
               native
               value={selected}
-              inputProps={{ id: `facet-${key}` }}
+              slotProps={{ input: { id: `facet-${key}` } }}
               onChange={event => {
                 // `native multiple` hands back the <select> itself, not a value
                 const { options } = event.target as unknown as HTMLSelectElement

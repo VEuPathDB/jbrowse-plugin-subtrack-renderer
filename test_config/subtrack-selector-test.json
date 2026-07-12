@@ -1,0 +1,140 @@
+{
+  "plugins": [
+    {
+      "name": "SubtrackRenderer",
+      "url": "http://localhost:9002/dist/jbrowse-plugin-subtrack-renderer.umd.development.js"
+    }
+  ],
+  "assemblies": [
+    {
+      "name": "volvox",
+      "sequence": {
+        "type": "ReferenceSequenceTrack",
+        "trackId": "volvox_refseq",
+        "adapter": {
+          "type": "TwoBitAdapter",
+          "twoBitLocation": {
+            "uri": "test_data/volvox/volvox.2bit",
+            "locationType": "UriLocation"
+          }
+        }
+      }
+    }
+  ],
+  "tracks": [
+    {
+      "type": "FeatureTrack",
+      "trackId": "volvox_subtracks",
+      "name": "Volvox subtracks (selector test)",
+      "assemblyNames": ["volvox"],
+      "adapter": {
+        "type": "Gff3TabixAdapter",
+        "gffGzLocation": {
+          "uri": "test_data/volvox/volvox.sort.gff3.gz",
+          "locationType": "UriLocation"
+        },
+        "index": {
+          "location": {
+            "uri": "test_data/volvox/volvox.sort.gff3.gz.tbi",
+            "locationType": "UriLocation"
+          }
+        }
+      },
+      "displays": [
+        {
+          "type": "SubtrackFeatureDisplay",
+          "displayId": "volvox_subtracks-SubtrackFeatureDisplay",
+          "renderer": {
+            "type": "SubtrackFeatureRenderer",
+            "subtrackConfig": {
+              "enabled": true,
+              "perSubtrackHeight": 60,
+              "minSubtrackHeight": 20,
+              "spacing": 6,
+              "showLabels": true
+            },
+            "subtracks": [
+              {
+                "label": "Matches",
+                "featureFilters": { "type": "match" },
+                "metadata": { "source": "example", "category": "Alignment" },
+                "visible": true
+              },
+              {
+                "label": "EST matches",
+                "featureFilters": { "type": "EST_match" },
+                "metadata": { "source": "est", "category": "Alignment" },
+                "visible": true
+              },
+              {
+                "label": "Remarks",
+                "featureFilters": { "type": "remark" },
+                "metadata": { "source": "example", "category": "Annotation" },
+                "visible": true
+              },
+              {
+                "label": "Protein domains",
+                "featureFilters": { "type": "polypeptide_domain" },
+                "metadata": { "source": "example", "category": "Protein" },
+                "visible": true
+              },
+              {
+                "label": "Genes",
+                "featureFilters": { "type": "gene" },
+                "metadata": { "source": "example", "category": "Annotation" },
+                "visible": false
+              },
+              {
+                "label": "SNPs",
+                "featureFilters": { "type": "SNP" },
+                "metadata": { "source": "example", "category": "Variation" },
+                "visible": false
+              },
+              {
+                "label": "Contigs",
+                "featureFilters": { "type": "contig" },
+                "metadata": { "source": "example", "category": "Assembly" },
+                "visible": false
+              },
+              {
+                "label": "BACs",
+                "featureFilters": { "type": "BAC" },
+                "metadata": { "source": "example", "category": "Assembly" },
+                "visible": false
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "defaultSession": {
+    "name": "subtrack selector test",
+    "views": [
+      {
+        "id": "linearGenomeView",
+        "type": "LinearGenomeView",
+        "displayedRegions": [
+          {
+            "refName": "ctgA",
+            "start": 0,
+            "end": 50000,
+            "assemblyName": "volvox"
+          }
+        ],
+        "tracks": [
+          {
+            "type": "FeatureTrack",
+            "configuration": "volvox_subtracks",
+            "displays": [
+              {
+                "type": "SubtrackFeatureDisplay",
+                "configuration": "volvox_subtracks-SubtrackFeatureDisplay"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
