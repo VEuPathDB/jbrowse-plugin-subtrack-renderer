@@ -35,7 +35,7 @@
     "start": "npm-run-all --sequential clean --parallel start:*",
     "start:watch": "cross-env JB_NPM=false NODE_ENV=development rollup --config --watch",
     "start:server": "serve --cors --listen $npm_package_config_port .",
-    "prebuild": "npm-run-all clean",
+    "prebuild": "rimraf dist",
     "build": "rollup --config",
     "browse": "npm-run-all jbrowse:*",
     "jbrowse:configure": "shx cp jbrowse_config.json .jbrowse/config.json",
