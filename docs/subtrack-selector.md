@@ -1,7 +1,22 @@
 # Subtrack selector: choosing and ordering lanes
 
-Status: design approved, not yet implemented
+Status: **implemented and merged to init-dev** (2026-07-11)
 Date: 2026-07-11
+
+Verified end to end in jbrowse-web against an 8-lane Volvox catalog
+(`test_config/subtrack-selector-test.json`): the menu item appears only when
+`subtrackConfig.enabled`; the dialog opens on the catalog defaults; a newly
+checked lane slots into catalog position rather than click position; filtering
+the table leaves the lane order untouched; Apply redraws **every** block at once
+(all three canvases went 240px -> 320px together); Cancel discards; Reset returns
+to the config defaults; and the selection **survives a page reload** via the
+session snapshot.
+
+Two things the design did not anticipate, both found in the browser and fixed:
+the checkboxes had no accessible name at runtime (`inputProps` is gone in the
+host's MUI 9, while jest renders against the plugin's MUI 7 -- see the MUI note
+in the workspace CLAUDE.md), and upstream's facet-count algorithm is wrong for
+two or more active facets (see Edge cases).
 
 ## The problem
 
