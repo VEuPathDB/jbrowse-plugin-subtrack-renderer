@@ -1,5 +1,5 @@
 import { facetedSubtrackModelF } from './facetedSubtrackModel'
-import { toRows } from './subtrackRows'
+import { toRows } from './toRows'
 
 import type { Subtrack } from '../SubtrackFeatureRenderer/subtrackUtils'
 

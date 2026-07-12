@@ -1,9 +1,5 @@
-import {
-  filterRows,
-  getFacetCounts,
-  getFacetKeys,
-  toRows,
-} from './subtrackRows'
+import { filterRows, getFacetCounts, getFacetKeys } from './subtrackRows'
+import { toRows } from './toRows'
 
 import type { Subtrack } from '../SubtrackFeatureRenderer/subtrackUtils'
 

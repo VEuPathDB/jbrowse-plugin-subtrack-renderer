@@ -1,4 +1,9 @@
-import type { Subtrack } from '../SubtrackFeatureRenderer/subtrackUtils'
+/**
+ * Generic faceted-table primitives. Nothing in this file knows what a subtrack
+ * is -- rows arrive already flattened (see ./toRows, the one adapter that does).
+ * That is deliberate: it is what would let this whole file be deleted in favour
+ * of an upstreamed generic JBrowse 2 FacetedSelector, rather than rewritten.
+ */
 
 export interface SubtrackRow {
   /** the subtrack label; the lane identity everywhere in this plugin */
@@ -6,42 +11,6 @@ export interface SubtrackRow {
   name: string
   /** featureFilters merged under metadata, primitives only */
   fields: Record<string, string>
-}
-
-/**
- * Only primitive values become facets. An array or a {min,max} range is a
- * predicate, not a descriptor -- it still assigns features to a lane, it just
- * makes no sense as a column to filter the selector on. Same rule as JBrowse 2's
- * getRootKeys().
- */
-function flatten(obj: Record<string, unknown> | undefined) {
-  const out: Record<string, string> = {}
-  for (const [key, value] of Object.entries(obj ?? {})) {
-    if (value !== null && value !== undefined && typeof value !== 'object') {
-      out[key] = String(value)
-    }
-  }
-  return out
-}
-
-/**
- * The JBrowse 1 trick, ported: featureFilters do double duty as the
- * lane-assignment predicate AND the facetable columns, so whatever attribute a
- * synteny subtrack filters on is automatically an attribute the selector can
- * facet on. No metadata service, no adapter, no fetch.
- *
- * metadata is spread last so it wins a key collision, matching JBrowse 1's
- * `dojo.mixin(base, featureFilters, metadata)` argument order.
- */
-export function toRows(catalog: Subtrack[]): SubtrackRow[] {
-  return catalog.map(subtrack => ({
-    id: subtrack.label,
-    name: subtrack.label,
-    fields: {
-      ...flatten(subtrack.featureFilters),
-      ...flatten(subtrack.metadata),
-    },
-  }))
 }
 
 export function getFacetKeys(rows: SubtrackRow[]): string[] {
