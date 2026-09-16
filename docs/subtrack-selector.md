@@ -90,10 +90,12 @@ So we port the *pattern*, not the code -- the same call JBrowse 1 made. See
 
 ### The config declares, the display decides
 
-`subtracks` stays exactly where it is, a `frozen` slot on the
-`SubtrackFeatureRenderer` schema, and becomes purely a **catalog**: every
-subtrack that *could* be shown. Nothing mutates it. `visible` now means
-*default-on*, JBrowse 1's `defaultChecked`. Existing configs need no migration.
+`subtracks` stays exactly where it is, a `frozen` slot — now `lanes` on the
+`SubtrackAdapter` config schema, shaped by the `Lane` type in
+`src/SubtrackAdapter/laneKey.ts` (there is no renderer in the current design)
+— and becomes purely a **catalog**: every subtrack that *could* be shown.
+Nothing mutates it. `visible` now means *default-on*, JBrowse 1's
+`defaultChecked`. Existing configs need no migration.
 
 `SubtrackFeatureDisplay` gains one MST property:
 
@@ -139,11 +141,12 @@ The lane-height reaction re-converges in its usual two passes. Stale labels drop
 out of `laneHeights` on their own, because `requiredLaneHeights` rebuilds the map
 fresh from what the blocks report rather than accumulating.
 
-Consequence worth naming: once the display hands the renderer a pre-filtered,
-pre-ordered list, the renderer's own `subtrack.visible === false` checks in
-`subtrackUtils.ts` become dead on the live path. Leave them -- they keep the
-renderer standalone-testable and the image snapshots green -- but stop treating
-them as the mechanism.
+Consequence worth naming: in the current design there is no renderer and no
+`subtrackUtils.ts` to speak of. `SubtrackAdapter` stamps every lane in the
+catalog onto matching features regardless of selection; visibility is
+display-side only, via `hiddenGroupKeys` on `LinearBasicDisplay`. So the
+adapter never filters, and there is no dead-path check to leave in place --
+hiding a lane costs a relayout, not a re-fetch.
 
 ### The selector
 
