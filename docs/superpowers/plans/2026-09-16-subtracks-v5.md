@@ -1315,3 +1315,32 @@ git push -u origin v5-rewrite
   is quiet: rollup still externalises the specifier and emits a working bundle,
   so only a typecheck over real imports catches it.
 - **Do not hand-copy a type from jbrowse-components.** Three separate bugs in the v4 plugin were hand-written mirrors of core types that had silently drifted. Import it and let the compiler catch drift.
+
+---
+
+## Version reality (recorded 2026-09-16)
+
+`groupBy` landed upstream on **2026-09-13**. The newest published release is
+**`5.0.0-beta.8` (2026-09-10)**, so **no released JBrowse contains the feature
+this plugin is built on**. npm `latest` is still 4.3.0; `next` is beta.8.
+
+We develop against published **beta.8** regardless, because the split is clean:
+
+| Needed at compile time | In beta.8? |
+| --- | --- |
+| `@jbrowse/core` Plugin, ConfigurationSchema, AdapterType, BaseFeatureDataAdapter, ObservableCreate, extendDisplayType | yes |
+| `@jbrowse/plugin-canvas` `./LinearBasicDisplay/stateModel` subpath | yes |
+| `trackMenuItems` on the display model | yes |
+| `groupBy`, `hiddenGroupKeys`, `displayHiddenGroupKeys` | **no** |
+
+The adapter never imports `groupBy`; it stamps an attribute and the host groups
+on it. So Tasks 3-8, 10 and the menu-item half of 9 build on beta.8 now.
+
+**Deferred until a beta ships with `groupBy`:** the `displayHiddenGroupKeys`
+override in Task 11. Do **not** hand-write those upstream types to unblock it —
+that is the mistake that produced three separate type bugs in the v4 plugin.
+
+**Browser verification runs against `jb-v5` (main HEAD), which does have
+`groupBy`.** That is a deliberate compile-against-beta.8 / run-against-main gap,
+confined to a feature we never import. Anything that behaves oddly there and not
+in tests should be suspected of being version drift first.
