@@ -934,157 +934,6 @@ pnpm typecheck && git add -A && git commit -m "feat: salvage resolveSubtracks fr
 
 ---
 
-## Task 9: Display extension — registry augmentation and menu
-
-**Files:**
-- Create: `src/displayExtension/registry.ts`, `src/displayExtension/index.ts`
-- Modify: `src/index.ts`
-
-- [ ] **Step 1: Declare the registry entry**
-
-`extendDisplayType` is typed as `N extends DisplayTypeName`, where `DisplayTypeName = keyof DisplayTypeRegistry`. Core declares `DisplayTypeRegistry` empty and only two in-tree displays augment it — `LinearBasicDisplay` is **not** one. Augmentation is additive, so declare it here.
-
-**Verified working on 2026-09-16** — this exact file typechecked in a probe
-against the installed packages. Note it is `registry.ts`, **not** `registry.d.ts`:
-a `.d.ts` is ambient and would apply without being imported, but we want the
-augmentation tied to an explicit import so it is obvious what loads it.
-
-`src/displayExtension/registry.ts`:
-
-```typescript
-import type stateModelFactory from '@jbrowse/plugin-canvas/LinearBasicDisplay/stateModel'
-
-// Derived from the real factory rather than hand-written: upstream drift
-// becomes a compile error here instead of a silently wrong augmentation.
-type LinearBasicDisplayStateModel = ReturnType<typeof stateModelFactory>
-
-declare module '@jbrowse/core/PluginManager' {
-  interface DisplayTypeRegistry {
-    LinearBasicDisplay: LinearBasicDisplayStateModel
-  }
-}
-```
-
-**Why `ReturnType<typeof stateModelFactory>` and not a named import:** the
-subpath `@jbrowse/plugin-canvas/LinearBasicDisplay/stateModel` exports the
-factory as its default and `LinearBasicDisplayModel` (the `Instance<>` type),
-but `LinearBasicDisplayStateModel` itself is declared **without `export`**
-(`esm/LinearBasicDisplay/model.d.ts:1289`). The `Instance<>` type is the wrong
-one here — `extendDisplayType` hands the callback the *model type*, not an
-instance. Reconstructing it off the factory gets the right type without copying
-anything.
-
-This matches how the two in-tree displays declare their own entries, e.g.
-`LGVSyntenyDisplay/model.ts`.
-
-- [ ] **Step 2: Verify the augmentation actually reaches the compiler**
-
-A `declare module` block only applies if the module containing it is in the program. A file imported only for types can be elided.
-
-```bash
-pnpm typecheck
-```
-
-Then deliberately break it — change `LinearBasicDisplay` to `LinearBasicDisplayX` in `src/displayExtension/index.ts` (written next) and confirm `pnpm typecheck` **fails**. If it passes, the augmentation is not loading and `extendDisplayType` has silently fallen back to an unchecked path — exactly the `Core-extendWorker` failure mode recorded in upstream's ABI doc, which typechecked clean while being a runtime `TypeError`. Restore the correct name afterwards.
-
-- [ ] **Step 3: Write the extension**
-
-`src/displayExtension/index.ts`:
-
-```typescript
-import { getConf } from '@jbrowse/core/configuration'
-import { extendDisplayType } from '@jbrowse/core/pluggableElementTypes'
-import { getContainingTrack } from '@jbrowse/core/util'
-import { cast, types } from '@jbrowse/mobx-state-tree'
-
-import { resolveSubtracks } from '../resolveSubtracks'
-
-import './registry.d'
-
-import type { Lane } from '../SubtrackAdapter/laneKey'
-
-/**
- * Returned unchanged when nothing is hidden. A module constant rather than a
- * fresh Set per read: downstream layout memos compare these by identity, so a
- * new empty Set every call would read as a change on every recompute.
- *
- * Core spells this `NO_HIDDEN_GROUPS` in `@jbrowse/display-kit`, which is NOT
- * on core's ReExports list — importing it at runtime would bundle a private
- * copy of that package. Declare our own; it is one empty Set.
- */
-const NONE: ReadonlySet<string> = new Set()
-
-/**
- * This extension composes onto EVERY LinearBasicDisplay, including tracks that
- * have nothing to do with subtracks, so every behavior it adds is gated on the
- * track actually being configured for them.
- */
-function isSubtrackTrack(self: unknown) {
-  try {
-    return (
-      getConf(getContainingTrack(self), ['adapter', 'type']) ===
-      'SubtrackAdapter'
-    )
-  } catch {
-    // a display not yet attached to a track has no adapter to ask about
-    return false
-  }
-}
-
-import type PluginManager from '@jbrowse/core/PluginManager'
-import type { IAnyModelType } from '@jbrowse/mobx-state-tree'
-
-export default function installDisplayExtension(pluginManager: PluginManager) {
-  extendDisplayType(pluginManager, 'LinearBasicDisplay', stateModel =>
-    (stateModel as IAnyModelType)
-      .props({
-        /**
-         * The reader's chosen lane labels. `undefined` means "not yet chosen",
-         * which resolveSubtracks reads as "fall back to the catalog defaults" —
-         * so undefined and [] are different answers and must stay so.
-         */
-        subtrackSelection: types.maybe(types.array(types.string)),
-      })
-      .volatile(() => ({
-        subtrackSelectorOpen: false,
-      }))
-      .actions(self => ({
-        setSubtrackSelectorOpen(open: boolean) {
-          self.subtrackSelectorOpen = open
-        },
-        setSubtrackSelection(labels: string[]) {
-          self.subtrackSelection = cast(labels)
-        },
-      })),
-  )
-}
-```
-
-- [ ] **Step 4: Wire it into the plugin**
-
-In `src/index.ts`, add to `install()`:
-
-```typescript
-import installDisplayExtension from './displayExtension/index'
-// ...
-    installDisplayExtension(pluginManager)
-```
-
-- [ ] **Step 5: Verify nothing regressed in the browser**
-
-Rebuild, reload jbrowse-web, and confirm the `subtrack_demo` track still renders its two lanes with no console errors.
-
-Expected: identical to Task 7. An MST composition error here throws during `install()`, which would make the track vanish entirely rather than fail loudly.
-
-- [ ] **Step 6: Commit**
-
-```bash
-git add src/displayExtension src/index.ts
-git commit -m "feat: extend LinearBasicDisplay with subtrack selector state"
-```
-
----
-
 ## Task 10: Salvage the selector dialog
 
 **Files:**
@@ -1133,44 +982,145 @@ pnpm typecheck && git add -A && git commit -m "feat: salvage the faceted subtrac
 
 ---
 
-## Task 11: Wire the dialog to lane visibility
+## Task 9+11 (combined): Display extension
+
+Tasks 9 and 11 both write `src/displayExtension/index.ts`, so they are one unit.
 
 **Files:**
-- Modify: `src/displayExtension/index.ts`
+- Create: `src/displayExtension/registry.ts`, `src/displayExtension/index.ts`
+- Modify: `src/index.ts`
 
-- [ ] **Step 1: Hide lanes through the sanctioned hook, not a setter**
+### The contract the salvaged dialog already imposes
 
-`HiddenGroupsMixin` (`packages/display-kit/src/HiddenGroupsMixin.ts`) owns lane
-visibility and exposes exactly two routes:
-
-- `hiddenGroups` — a **volatile** set of sections *the reader* hid from a chip,
-  with `hideGroup` / `showAllGroups` over it.
-- `displayHiddenGroupKeys` — an overridable getter documented as "lanes the
-  DISPLAY hides on its own behalf". `LGVSyntenyDisplay` hides an all-vs-all
-  track's self-alignment lane through it.
-
-`hiddenGroupKeys` folds both, and there is **no `setHiddenGroupKeys`**. We are a
-display hiding lanes on its own behalf, so we override the getter. Add to the
-extension a `.views()` block:
+`SubtrackSelectorDialog` takes `{ display, handleClose }`, where `display`
+satisfies `SubtrackSelectorTarget` (`src/SubtrackSelector/SubtrackSelectorDialog.tsx:27`):
 
 ```typescript
+export interface SubtrackSelectorTarget {
+  subtrackCatalog: Subtrack[]
+  subtrackSelection: string[] | undefined
+  setSubtrackSelection: (labels: string[]) => void
+  resetSubtrackSelection: () => void
+}
+```
+
+The extension exists to make the display satisfy that, plus derive visibility
+from it. `subtrackSelection` being `undefined` means "not yet chosen" and
+`resolveSubtracks` reads it as "fall back to catalog defaults" — so `undefined`
+and `[]` are different answers and must stay so.
+
+- [ ] **Step 1: The registry augmentation**
+
+Verified working 2026-09-16 against the installed packages. It is `registry.ts`,
+not `registry.d.ts`: a `.d.ts` is ambient and would apply without being
+imported, and we want the augmentation tied to an explicit import.
+
+```typescript
+import type stateModelFactory from '@jbrowse/plugin-canvas/LinearBasicDisplay/stateModel'
+
+// Derived from the real factory rather than hand-written: upstream drift
+// becomes a compile error here instead of a silently wrong augmentation.
+type LinearBasicDisplayStateModel = ReturnType<typeof stateModelFactory>
+
+declare module '@jbrowse/core/PluginManager' {
+  interface DisplayTypeRegistry {
+    LinearBasicDisplay: LinearBasicDisplayStateModel
+  }
+}
+```
+
+`LinearBasicDisplayStateModel` is declared but **not exported** by that subpath
+(`esm/LinearBasicDisplay/model.d.ts:1289`); only `LinearBasicDisplayModel`, the
+`Instance<>` type, is — and that is the wrong one, since `extendDisplayType`
+hands the callback the *model* type. Hence `ReturnType<typeof stateModelFactory>`.
+
+- [ ] **Step 2: The extension**
+
+```typescript
+import { lazy } from 'react'
+
+import { getConf } from '@jbrowse/core/configuration'
+import { extendDisplayType } from '@jbrowse/core/pluggableElementTypes'
+import { getContainingTrack, getDialogHost } from '@jbrowse/core/util'
+import { cast, types } from '@jbrowse/mobx-state-tree'
+
+import { resolveSubtracks } from '../resolveSubtracks'
+
+import './registry'
+
+import type { Lane } from '../SubtrackAdapter/laneKey'
+import type PluginManager from '@jbrowse/core/PluginManager'
+import type { IAnyModelType } from '@jbrowse/mobx-state-tree'
+
+const SubtrackSelectorDialog = lazy(
+  () => import('../SubtrackSelector/SubtrackSelectorDialog'),
+)
+
+/**
+ * Returned unchanged when nothing is hidden. A module constant, not a fresh Set
+ * per read: downstream layout memos compare by identity, so a new empty Set
+ * every call reads as a change on every recompute.
+ *
+ * Core spells this `NO_HIDDEN_GROUPS` in `@jbrowse/display-kit`, which is NOT on
+ * core's ReExports list — importing it would bundle a private copy of that
+ * package. Declaring our own costs one empty Set.
+ */
+const NONE: ReadonlySet<string> = new Set()
+
+/**
+ * This extension composes onto EVERY LinearBasicDisplay, including tracks with
+ * nothing to do with subtracks, so every behavior it adds is gated on the track
+ * actually being configured for them.
+ */
+function isSubtrackTrack(self: unknown) {
+  try {
+    return (
+      getConf(getContainingTrack(self), ['adapter', 'type']) ===
+      'SubtrackAdapter'
+    )
+  } catch {
+    // a display not yet attached to a track has no adapter to ask about
+    return false
+  }
+}
+
+export default function installDisplayExtension(pluginManager: PluginManager) {
+  extendDisplayType(pluginManager, 'LinearBasicDisplay', stateModel =>
+    (stateModel as IAnyModelType)
+      .props({
+        subtrackSelection: types.maybe(types.array(types.string)),
+      })
       .views(self => ({
-        /**
-         * The catalog lives on the adapter config. resolveSubtracks dedupes it
-         * and drops selections naming a lane the config has retired, so a stale
-         * session degrades gracefully instead of hiding real lanes.
-         */
-        get displayHiddenGroupKeys(): ReadonlySet<string> {
-          const { subtrackSelection } = self
-          if (!subtrackSelection || !isSubtrackTrack(self)) {
-            return NONE
+        get subtrackCatalog(): Lane[] {
+          if (!isSubtrackTrack(self)) {
+            return []
           }
-          const catalog =
+          return (
             (getConf(getContainingTrack(self), ['adapter', 'lanes']) as
               | Lane[]
               | undefined) ?? []
+          )
+        },
+      }))
+      .views(self => ({
+        /**
+         * Lanes this display hides on its own behalf: every catalog lane the
+         * reader's selection leaves out. `resolveSubtracks` dedupes the catalog
+         * and drops selections naming a retired lane, so a stale session
+         * degrades instead of hiding real lanes.
+         *
+         * A getter, not an action: visibility is DERIVED from the selection, so
+         * there is no second copy of the truth, and the reader's own chip-hiding
+         * composes on top via HiddenGroupsMixin's `hiddenGroupKeys`.
+         */
+        get displayHiddenGroupKeys(): ReadonlySet<string> {
+          const sel = self.subtrackSelection
+          if (!sel || !isSubtrackTrack(self)) {
+            return NONE
+          }
+          const catalog = self.subtrackCatalog
           const keep = new Set(
-            resolveSubtracks(catalog, [...subtrackSelection]).map(l => l.label),
+            resolveSubtracks(catalog, [...sel]).map(l => l.label),
           )
           const hidden = catalog
             .map(l => l.label)
@@ -1178,17 +1128,23 @@ extension a `.views()` block:
           return hidden.length === 0 ? NONE : new Set(hidden)
         },
       }))
-```
-
-A getter, not an action: visibility is *derived* from the selection, so there is
-no second copy of the truth to keep in sync, and the reader's own chip-hiding
-composes on top for free.
-
-- [ ] **Step 2: Add the menu item**
-
-Append to the extension's `.actions()` block:
-
-```typescript
+      .actions(self => ({
+        setSubtrackSelection(labels: string[]) {
+          self.subtrackSelection = cast(labels)
+        },
+        resetSubtrackSelection() {
+          self.subtrackSelection = undefined
+        },
+        openSubtrackSelector() {
+          // getDialogHost is `#api core/util`: "where a display puts a dialog it
+          // cannot mount itself". A display model holds no React component in
+          // v5, so this is the only route.
+          getDialogHost(self).queueDialog(handleClose => [
+            SubtrackSelectorDialog,
+            { display: self, handleClose },
+          ])
+        },
+      }))
       .actions(self => {
         const superTrackMenuItems = self.trackMenuItems
         return {
@@ -1206,57 +1162,79 @@ Append to the extension's `.actions()` block:
               ...base.filter(item => item.label !== 'Group by...'),
               {
                 label: 'Select subtracks...',
-                onClick: () => { self.setSubtrackSelectorOpen(true) },
+                onClick: () => {
+                  self.openSubtrackSelector()
+                },
               },
             ]
           },
         }
-      })
+      }),
+  )
+}
 ```
 
-Note the super-capture: MST actions capture the base implementation before
-overriding. This is the normal action pattern — it is only `afterAttach` that
-must **not** chain to super, because the MST fork auto-chains lifecycle hooks
-and calling it installs every fetch autorun twice.
+- [ ] **Step 3: Wire it into the plugin**
 
-- [ ] **Step 2b: Know what resets, and confirm our selection does not**
+In `src/index.ts`, add to `install()`:
 
-`HiddenGroupsMixin` installs a reaction that calls `dropGroupState()` whenever
-the display's `groupKeySpace` moves, clearing `hiddenGroups`. That is deliberate:
-a key names a section only within the grouping that issued it.
+```typescript
+import installDisplayExtension from './displayExtension'
+// ...
+    installDisplayExtension(pluginManager)
+```
 
-Our selection is a **prop**, not volatile, and `dropGroupState` does not touch
-it — correct, because our keys are lane labels from the config, whose meaning
-does not change when the grouping dimension does. Verify this holds: switch the
-track's grouping to Strand and back, and confirm the lane selection survives.
+- [ ] **Step 4: Prove the augmentation reaches the compiler**
 
-If a future change makes lane labels dependent on the dimension, this becomes
-wrong and the selection must move under an overridden `dropGroupState` that
-calls through.
+A `declare module` block only applies if its module is in the program. Break it
+deliberately — change `'LinearBasicDisplay'` to `'LinearBasicDisplayX'` and
+confirm `pnpm typecheck` **fails**. If it passes, the augmentation is not
+loading and `extendDisplayType` fell to an unchecked path — the
+`Core-extendWorker` failure mode, which typechecked clean while being a runtime
+TypeError. Restore afterwards.
 
-- [ ] **Step 2c: Confirm the gate is tight in both directions**
+- [ ] **Step 5: Know what beta.8 cannot check for you**
 
-Matching on a menu label is brittle — an upstream rename turns this filter into
-a silent no-op. Pin it with a test asserting the entry is absent on a subtrack
-track and present on an ordinary one, so a rename fails loudly here rather than
-surfacing as a user destroying their own lanes.
+Published beta.8 predates `groupBy`, so its types carry no
+`displayHiddenGroupKeys`. Our `.views()` therefore reads to the compiler as
+*adding* a view, not *overriding* one — which compiles, and works at runtime
+because the host has `HiddenGroupsMixin` and later views win.
 
-In the browser, confirm both directions: a `SubtrackAdapter` track shows
-"Select subtracks..." and no "Group by...", and a stock `gff3tabix_genes` track
-still shows "Group by..." exactly as before.
+The cost: **a typo in the hook name silently adds an unused view instead of
+overriding.** Nothing fails. This is caught only in the browser, at Step 7.
 
-- [ ] **Step 3: Verify in the browser**
+- [ ] **Step 6: Test what can be tested in jsdom**
 
-Rebuild, reload, open the track menu.
+Pin the menu gate, which is brittle because it matches a label string:
 
-Expected: "Select subtracks..." appears. Choosing it opens the faceted dialog. Deselecting a lane and confirming makes that lane's features leave the pack and the track reflow — with **no network request**, because visibility is display-side only and never touches the adapter config.
+- on a subtrack-configured track, `trackMenuItems()` contains "Select
+  subtracks..." and does NOT contain "Group by..."
+- on an ordinary track, it contains "Group by..." and NOT "Select subtracks..."
 
-Confirm the no-refetch claim in the browser devtools Network tab. A request on toggle means lane visibility has leaked into the adapter config, which forks the adapter cache and re-parses the file per toggle.
+An upstream rename of "Group by..." then fails here loudly, rather than
+surfacing as a reader destroying their own lanes.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 7: Verify in the browser — this is the real gate**
+
+Servers: jbrowse-web on :3000, the plugin bundle on :9002.
+`http://localhost:3000/?config=http://localhost:9002/test_config/subtrack-test.json`
+
+1. The subtrack track's menu shows "Select subtracks..." and **no** "Group by...".
+2. A stock `gff3tabix_genes` track still shows "Group by..." unchanged.
+3. "Select subtracks..." opens the faceted dialog.
+4. Deselecting a lane and applying makes that lane leave the pack and the track
+   reflow. **If nothing happens, `displayHiddenGroupKeys` is not overriding** —
+   see Step 5.
+5. Cancel leaves the selection untouched (the dialog is a transaction).
+6. **No network request on toggle** (devtools Network tab). A request means lane
+   visibility leaked into the adapter config, forking the adapter cache and
+   re-parsing the file per toggle.
+
+- [ ] **Step 8: Commit**
 
 ```bash
-git add src/displayExtension && git commit -m "feat: wire the selector dialog to lane visibility"
+git add src/displayExtension src/index.ts
+git commit -m "feat: display extension wiring the selector to lane visibility"
 ```
 
 ---
