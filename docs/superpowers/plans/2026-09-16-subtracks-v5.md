@@ -950,13 +950,24 @@ Then deliberately break it — change `LinearBasicDisplay` to `LinearBasicDispla
 import { getConf } from '@jbrowse/core/configuration'
 import { extendDisplayType } from '@jbrowse/core/pluggableElementTypes'
 import { getContainingTrack } from '@jbrowse/core/util'
-import { types } from '@jbrowse/mobx-state-tree'
+import { cast, types } from '@jbrowse/mobx-state-tree'
 
 import { resolveSubtracks } from '../resolveSubtracks.ts'
 
 import './registry.d.ts'
 
 import type { Lane } from '../SubtrackAdapter/laneKey.ts'
+
+/**
+ * Returned unchanged when nothing is hidden. A module constant rather than a
+ * fresh Set per read: downstream layout memos compare these by identity, so a
+ * new empty Set every call would read as a change on every recompute.
+ *
+ * Core spells this `NO_HIDDEN_GROUPS` in `@jbrowse/display-kit`, which is NOT
+ * on core's ReExports list — importing it at runtime would bundle a private
+ * copy of that package. Declare our own; it is one empty Set.
+ */
+const NONE: ReadonlySet<string> = new Set()
 
 import type PluginManager from '@jbrowse/core/PluginManager'
 import type { IAnyModelType } from '@jbrowse/mobx-state-tree'
@@ -965,11 +976,22 @@ export default function installDisplayExtension(pluginManager: PluginManager) {
   extendDisplayType(pluginManager, 'LinearBasicDisplay', stateModel =>
     (stateModel as IAnyModelType)
       .props({
-        subtrackSelectorOpen: types.optional(types.boolean, false),
+        /**
+         * The reader's chosen lane labels. `undefined` means "not yet chosen",
+         * which resolveSubtracks reads as "fall back to the catalog defaults" —
+         * so undefined and [] are different answers and must stay so.
+         */
+        subtrackSelection: types.maybe(types.array(types.string)),
       })
+      .volatile(() => ({
+        subtrackSelectorOpen: false,
+      }))
       .actions(self => ({
         setSubtrackSelectorOpen(open: boolean) {
           self.subtrackSelectorOpen = open
+        },
+        setSubtrackSelection(labels: string[]) {
+          self.subtrackSelection = cast(labels)
         },
       })),
   )
@@ -1054,31 +1076,60 @@ pnpm typecheck && git add -A && git commit -m "feat: salvage the faceted subtrac
 **Files:**
 - Modify: `src/displayExtension/index.ts`
 
-- [ ] **Step 1: Add the menu item and the confirm handler**
+- [ ] **Step 1: Hide lanes through the sanctioned hook, not a setter**
 
-Extend the `.actions()` block from Task 9 with a `trackMenuItems` override that appends a "Select subtracks..." entry opening the dialog, and an action applying the result:
+`HiddenGroupsMixin` (`packages/display-kit/src/HiddenGroupsMixin.ts`) owns lane
+visibility and exposes exactly two routes:
+
+- `hiddenGroups` — a **volatile** set of sections *the reader* hid from a chip,
+  with `hideGroup` / `showAllGroups` over it.
+- `displayHiddenGroupKeys` — an overridable getter documented as "lanes the
+  DISPLAY hides on its own behalf". `LGVSyntenyDisplay` hides an all-vs-all
+  track's self-alignment lane through it.
+
+`hiddenGroupKeys` folds both, and there is **no `setHiddenGroupKeys`**. We are a
+display hiding lanes on its own behalf, so we override the getter. Add to the
+extension a `.views()` block:
+
+```typescript
+      .views(self => ({
+        /**
+         * The catalog lives on the adapter config. resolveSubtracks dedupes it
+         * and drops selections naming a lane the config has retired, so a stale
+         * session degrades gracefully instead of hiding real lanes.
+         */
+        get displayHiddenGroupKeys(): ReadonlySet<string> {
+          const { subtrackSelection } = self
+          if (!subtrackSelection) {
+            return NONE
+          }
+          const catalog =
+            (getConf(getContainingTrack(self), ['adapter', 'lanes']) as
+              | Lane[]
+              | undefined) ?? []
+          const keep = new Set(
+            resolveSubtracks(catalog, [...subtrackSelection]).map(l => l.label),
+          )
+          const hidden = catalog
+            .map(l => l.label)
+            .filter(label => !keep.has(label))
+          return hidden.length === 0 ? NONE : new Set(hidden)
+        },
+      }))
+```
+
+A getter, not an action: visibility is *derived* from the selection, so there is
+no second copy of the truth to keep in sync, and the reader's own chip-hiding
+composes on top for free.
+
+- [ ] **Step 2: Add the menu item**
+
+Append to the extension's `.actions()` block:
 
 ```typescript
       .actions(self => {
         const superTrackMenuItems = self.trackMenuItems
         return {
-          applySubtrackSelection(selectedLabels: string[]) {
-            // The catalog lives on the adapter config; resolveSubtracks dedupes
-            // it and drops selections naming a lane the config has retired, so
-            // a stale session degrades instead of hiding real lanes.
-            const catalog = getConf(getContainingTrack(self), [
-              'adapter',
-              'lanes',
-            ]) as Lane[]
-            const resolved = resolveSubtracks(catalog, selectedLabels)
-            const keep = new Set(resolved.map(l => l.label))
-            self.setHiddenGroupKeys(
-              new Set(
-                catalog.map(l => l.label).filter(label => !keep.has(label)),
-              ),
-            )
-            self.setSubtrackSelectorOpen(false)
-          },
           trackMenuItems() {
             return [
               ...superTrackMenuItems(),
@@ -1092,23 +1143,25 @@ Extend the `.actions()` block from Task 9 with a `trackMenuItems` override that 
       })
 ```
 
-Note the super-capture: MST actions capture the base implementation before overriding. This is the normal action pattern — it is only `afterAttach` that must **not** chain to super, because the MST fork auto-chains lifecycle hooks and calling it installs every fetch autorun twice.
+Note the super-capture: MST actions capture the base implementation before
+overriding. This is the normal action pattern — it is only `afterAttach` that
+must **not** chain to super, because the MST fork auto-chains lifecycle hooks
+and calling it installs every fetch autorun twice.
 
-`resolveSubtracks` also returns the lanes in selection order. That ordering is
-**inert on stock v5** — `featureGroupSections` sorts sections by
-`compareGroupKeys`, which is code-point — and becomes meaningful only once the
-deferred upstream ask lands. Keep it wired anyway; discarding it now means
-rediscovering it later.
+- [ ] **Step 2b: Know what resets, and confirm our selection does not**
 
-- [ ] **Step 2: Confirm the setter name is real**
+`HiddenGroupsMixin` installs a reaction that calls `dropGroupState()` whenever
+the display's `groupKeySpace` moves, clearing `hiddenGroups`. That is deliberate:
+a key names a section only within the grouping that issued it.
 
-`setHiddenGroupKeys` is assumed. Verify against the actual model rather than trusting this plan:
+Our selection is a **prop**, not volatile, and `dropGroupState` does not touch
+it — correct, because our keys are lane labels from the config, whose meaning
+does not change when the grouping dimension does. Verify this holds: switch the
+track's grouping to Strand and back, and confirm the lane selection survives.
 
-```bash
-grep -n "hiddenGroupKeys" /home/jbrestel/jbrowse2/jb-v5/plugins/canvas/src/LinearBasicDisplay/baseModel.ts
-```
-
-Use the actual action name and argument type you find. If the model exposes a toggle rather than a setter, apply the selection as a diff instead.
+If a future change makes lane labels dependent on the dimension, this becomes
+wrong and the selection must move under an overridden `dropGroupState` that
+calls through.
 
 - [ ] **Step 3: Verify in the browser**
 
