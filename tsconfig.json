@@ -1,0 +1,54 @@
+{
+  "compilerOptions": {
+    // ES2020 so Map/Set/array iterators can be spread and for..of'd directly.
+    // The old "es5" target made tsc demand --downlevelIteration for perfectly
+    // ordinary iteration, and it was never meaningful here: rollup transpiles
+    // the bundle, and JBrowse 4 targets modern browsers regardless.
+    "target": "ES2020",
+    "module": "esnext",
+    "lib": ["dom", "esnext"],
+    "importHelpers": true,
+    // output .d.ts declaration files for consumers
+    "declaration": true,
+    // output .js.map sourcemap files for consumers
+    "sourceMap": true,
+    // match output dir to input dir. e.g. dist/index instead of dist/src/index
+    "rootDir": "./src",
+    // stricter type-checking for stronger correctness. Recommended by TS
+    "strict": true,
+    // arr[i] is T | undefined, not T. The codebase was already written as if this
+    // were on -- every `arr[0]!` depends on it -- but it was never actually set,
+    // so tsc typed arr[0] as T and eslint flagged those assertions as
+    // "unnecessary". Enabling it costs zero new errors and makes them correct.
+    "noUncheckedIndexedAccess": true,
+    // linter checks for common issues
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    // noUnused* overlap with @typescript-eslint/no-unused-vars, can disable if duplicative
+    // "noUnusedLocals": true,
+    // "noUnusedParameters": true,
+    // use Node's module resolution algorithm, instead of the legacy TS one
+    "moduleResolution": "node",
+    // transpile JSX to React.createElement
+    "jsx": "react",
+    // interop between ESM and CJS modules. Recommended by TS
+    "esModuleInterop": true,
+    // significant perf increase by skipping checking .d.ts files, particularly those in node_modules. Recommended by TS
+    "skipLibCheck": true,
+    // error out if import and file system have a casing mismatch. Recommended by TS
+    "forceConsistentCasingInFileNames": true,
+    // `rollup` ignores this option, but it is commonly used when type-checking separately with `tsc`
+    "noEmit": true,
+    // Can remove this if only using TypeScript
+    "allowJs": true,
+    // Allow importing JSON files
+    "resolveJsonModule": false
+  },
+  // Jest uses ts-node to load the jest.config.ts file
+  "ts-node": {
+    "transpileOnly": true,
+    "project": "./tsconfig.test.json"
+  },
+  "include": ["src"],
+  "exclude": ["**/dist/"]
+}
