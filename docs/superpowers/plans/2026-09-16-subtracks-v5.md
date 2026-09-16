@@ -980,6 +980,23 @@ import type { Lane } from '../SubtrackAdapter/laneKey.ts'
  */
 const NONE: ReadonlySet<string> = new Set()
 
+/**
+ * This extension composes onto EVERY LinearBasicDisplay, including tracks that
+ * have nothing to do with subtracks, so every behavior it adds is gated on the
+ * track actually being configured for them.
+ */
+function isSubtrackTrack(self: unknown) {
+  try {
+    return (
+      getConf(getContainingTrack(self), ['adapter', 'type']) ===
+      'SubtrackAdapter'
+    )
+  } catch {
+    // a display not yet attached to a track has no adapter to ask about
+    return false
+  }
+}
+
 import type PluginManager from '@jbrowse/core/PluginManager'
 import type { IAnyModelType } from '@jbrowse/mobx-state-tree'
 
@@ -1111,7 +1128,7 @@ extension a `.views()` block:
          */
         get displayHiddenGroupKeys(): ReadonlySet<string> {
           const { subtrackSelection } = self
-          if (!subtrackSelection) {
+          if (!subtrackSelection || !isSubtrackTrack(self)) {
             return NONE
           }
           const catalog =
@@ -1142,8 +1159,17 @@ Append to the extension's `.actions()` block:
         const superTrackMenuItems = self.trackMenuItems
         return {
           trackMenuItems() {
+            const base = superTrackMenuItems()
+            if (!isSubtrackTrack(self)) {
+              return base
+            }
+            // Upstream's "Group by..." calls applyGroupBy, which would replace
+            // our {type:'attribute', attribute:'subtrack'} wholesale. Picking
+            // Strand there makes the lanes vanish and leaves the lane-label
+            // hidden keys matching no section — a silent break, so the entry
+            // comes off on tracks we own. Every other track keeps it.
             return [
-              ...superTrackMenuItems(),
+              ...base.filter(item => item.label !== 'Group by...'),
               {
                 label: 'Select subtracks...',
                 onClick: () => { self.setSubtrackSelectorOpen(true) },
@@ -1173,6 +1199,17 @@ track's grouping to Strand and back, and confirm the lane selection survives.
 If a future change makes lane labels dependent on the dimension, this becomes
 wrong and the selection must move under an overridden `dropGroupState` that
 calls through.
+
+- [ ] **Step 2c: Confirm the gate is tight in both directions**
+
+Matching on a menu label is brittle — an upstream rename turns this filter into
+a silent no-op. Pin it with a test asserting the entry is absent on a subtrack
+track and present on an ordinary one, so a rename fails loudly here rather than
+surfacing as a user destroying their own lanes.
+
+In the browser, confirm both directions: a `SubtrackAdapter` track shows
+"Select subtracks..." and no "Group by...", and a stock `gff3tabix_genes` track
+still shows "Group by..." exactly as before.
 
 - [ ] **Step 3: Verify in the browser**
 
