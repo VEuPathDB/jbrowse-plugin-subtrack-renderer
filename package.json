@@ -36,7 +36,7 @@
     "start:watch": "cross-env JB_NPM=false NODE_ENV=development rollup --config --watch",
     "start:server": "serve --cors --listen $npm_package_config_port .",
     "prebuild": "rimraf dist",
-    "build": "rollup --config",
+    "build": "cross-env JB_NPM=false rollup --config",
     "browse": "npm-run-all jbrowse:*",
     "jbrowse:configure": "shx cp jbrowse_config.json .jbrowse/config.json",
     "jbrowse:serve": "cross-var serve --listen $npm_package_config_browse_port .jbrowse",
