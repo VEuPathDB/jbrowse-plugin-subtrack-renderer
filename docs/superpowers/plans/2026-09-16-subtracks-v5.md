@@ -191,6 +191,25 @@ pnpm typecheck
 
 Expected: exits 0.
 
+**That check is vacuous on its own** — an empty file typechecks no matter how
+broken module resolution is. Prove resolution actually works by typechecking a
+file that imports core for real:
+
+```bash
+cat > /tmp/resolve-probe.ts <<'EOF'
+import Plugin from '@jbrowse/core/Plugin'
+import { ConfigurationSchema } from '@jbrowse/core/configuration'
+export { Plugin, ConfigurationSchema }
+EOF
+cp /tmp/resolve-probe.ts src/probe.ts && pnpm typecheck; rm src/probe.ts
+```
+
+Expected: exits 0. `TS2307: Cannot find module '@jbrowse/core/Plugin'` means
+`moduleResolution` is wrong — core 5 publishes 234 subpaths through an
+`exports` map, and Node10 resolution does not read `exports` at all. It must be
+`"bundler"`. rollup externalises those specifiers regardless, so the bundle
+still builds; you get a plugin with no types and no warning.
+
 - [ ] **Step 6: Commit**
 
 ```bash
@@ -212,7 +231,7 @@ Semantics carried from v4 `featureMatchesSubtrack`: every entry in `featureFilte
 - [ ] **Step 1: Write the failing test**
 
 ```typescript
-import { matchesFilters } from './featureFilters.ts'
+import { matchesFilters } from './featureFilters'
 
 const feat = (data: Record<string, unknown>) => ({
   get: (k: string) => data[k],
@@ -332,8 +351,8 @@ Which lane a feature lands in. First match wins, so lane order is also filter pr
 - [ ] **Step 1: Write the failing test**
 
 ```typescript
-import { laneKeyFor } from './laneKey.ts'
-import type { Lane } from './laneKey.ts'
+import { laneKeyFor } from './laneKey'
+import type { Lane } from './laneKey'
 
 const feat = (data: Record<string, unknown>) => ({
   get: (k: string) => data[k],
@@ -386,9 +405,9 @@ Expected: FAIL — `Cannot find module './laneKey.ts'`.
 - [ ] **Step 3: Implement**
 
 ```typescript
-import { matchesFilters } from './featureFilters.ts'
+import { matchesFilters } from './featureFilters'
 
-import type { FeatureFilters } from './featureFilters.ts'
+import type { FeatureFilters } from './featureFilters'
 
 /**
  * One lane. `label` is the lane's identity: it is the value stamped onto each
@@ -447,7 +466,7 @@ Wrap a `Feature` so `get('subtrack')` answers, delegating everything else. A wra
 - [ ] **Step 1: Write the failing test**
 
 ```typescript
-import { decorateFeature } from './decorateFeature.ts'
+import { decorateFeature } from './decorateFeature'
 
 import type { Feature } from '@jbrowse/core/util'
 
@@ -581,7 +600,7 @@ export default ConfigurationSchema(
 ```typescript
 import { firstValueFrom, toArray } from 'rxjs'
 
-import SubtrackAdapter from './SubtrackAdapter.ts'
+import SubtrackAdapter from './SubtrackAdapter'
 
 import type { Feature } from '@jbrowse/core/util'
 
@@ -668,10 +687,10 @@ Expected: FAIL — `Cannot find module './SubtrackAdapter.ts'`.
 import { BaseFeatureDataAdapter } from '@jbrowse/core/data_adapters/BaseAdapter'
 import { ObservableCreate } from '@jbrowse/core/util/rxjs'
 
-import { decorateFeature } from './decorateFeature.ts'
-import { laneKeyFor } from './laneKey.ts'
+import { decorateFeature } from './decorateFeature'
+import { laneKeyFor } from './laneKey'
 
-import type { Lane } from './laneKey.ts'
+import type { Lane } from './laneKey'
 import type { BaseOptions } from '@jbrowse/core/data_adapters/BaseAdapter'
 import type { Feature, Region } from '@jbrowse/core/util'
 
@@ -736,7 +755,7 @@ If `ObservableCreate`'s second argument does not accept `opts?.signal`, check it
 ```typescript
 import AdapterType from '@jbrowse/core/pluggableElementTypes/AdapterType'
 
-import configSchema from './configSchema.ts'
+import configSchema from './configSchema'
 
 import type PluginManager from '@jbrowse/core/PluginManager'
 
@@ -748,7 +767,7 @@ export default function SubtrackAdapterF(pluginManager: PluginManager) {
         displayName: 'Subtrack adapter',
         configSchema,
         getAdapterClass: () =>
-          import('./SubtrackAdapter.ts').then(r => r.default),
+          import('./SubtrackAdapter').then(r => r.default),
       }),
   )
 }
@@ -777,7 +796,7 @@ Registration happens in `install()`, never `configure()` — the registry is fro
 ```typescript
 import Plugin from '@jbrowse/core/Plugin'
 
-import SubtrackAdapterF from './SubtrackAdapter/index.ts'
+import SubtrackAdapterF from './SubtrackAdapter/index'
 
 import type PluginManager from '@jbrowse/core/PluginManager'
 
@@ -892,7 +911,7 @@ rmdir src/SubtrackFeatureDisplay 2>/dev/null || true
 The v4 file imports `Subtrack` from the deleted renderer. Point it at `Lane` instead — the same shape:
 
 ```typescript
-import type { Lane as Subtrack } from './SubtrackAdapter/laneKey.ts'
+import type { Lane as Subtrack } from './SubtrackAdapter/laneKey'
 ```
 
 Fix the test's import path the same way.
@@ -963,11 +982,11 @@ import { extendDisplayType } from '@jbrowse/core/pluggableElementTypes'
 import { getContainingTrack } from '@jbrowse/core/util'
 import { cast, types } from '@jbrowse/mobx-state-tree'
 
-import { resolveSubtracks } from '../resolveSubtracks.ts'
+import { resolveSubtracks } from '../resolveSubtracks'
 
-import './registry.d.ts'
+import './registry.d'
 
-import type { Lane } from '../SubtrackAdapter/laneKey.ts'
+import type { Lane } from '../SubtrackAdapter/laneKey'
 
 /**
  * Returned unchanged when nothing is hidden. A module constant rather than a
@@ -1031,7 +1050,7 @@ export default function installDisplayExtension(pluginManager: PluginManager) {
 In `src/index.ts`, add to `install()`:
 
 ```typescript
-import installDisplayExtension from './displayExtension/index.ts'
+import installDisplayExtension from './displayExtension/index'
 // ...
     installDisplayExtension(pluginManager)
 ```
@@ -1275,4 +1294,11 @@ git push -u origin v5-rewrite
 - **Never mutate `self` from inside a `reaction`/`when`/`autorun`.** Effects fire outside MST action context; route every mutation through an action.
 - **A green jsdom test is not evidence a component renders.** `@mui/material` is on core's ReExports list, so the plugin gets the *host's* copy at runtime while jest renders against the plugin's own devDependency. Verify UI in a real build.
 - **`pnpm lint` is red at baseline** in this repo (219 pre-existing errors on `init-dev`). Do not use it as a pass/fail gate; lint only what you touch: `npx eslint src/<dir>`.
+- **Relative imports carry no `.ts` extension here.** Upstream writes
+  `from './foo.ts'` because it sets `allowImportingTsExtensions` with
+  `noEmit`. We emit through rollup, so we cannot; write `from './foo'`.
+- **`moduleResolution` must be `"bundler"`.** Core 5 is ESM-only behind an
+  `exports` map. Node10 resolution ignores `exports` entirely, and the failure
+  is quiet: rollup still externalises the specifier and emits a working bundle,
+  so only a typecheck over real imports catches it.
 - **Do not hand-copy a type from jbrowse-components.** Three separate bugs in the v4 plugin were hand-written mirrors of core types that had silently drifted. Import it and let the compiler catch drift.
