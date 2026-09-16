@@ -1,8 +1,10 @@
 # jbrowse-plugin-subtrack-renderer
 
 A JBrowse 2 plugin that splits a feature track into stacked, labelled lanes
-("subtracks") by feature attribute — for example, one lane per gene type, one
-lane per organism, or one lane per study. It contributes a `SubtrackAdapter`
+("subtracks"). A lane is defined by a *filter* over feature attributes — one
+lane per gene type, per organism, per study, or any combination — which is what
+distinguishes it from stock JBrowse's grouping, where a section is one value of
+one attribute. It contributes a `SubtrackAdapter`
 that wraps any other data adapter and stamps each feature with a lane label,
 plus a faceted lane-picker dialog. All actual layout and drawing is done by
 stock JBrowse's `LinearBasicDisplay.groupBy`; this plugin makes no changes to
@@ -123,6 +125,11 @@ The plugin adds a track-menu entry that opens a faceted lane picker: search by
 name, drill into facets built from each lane's `metadata`, and reorder the
 selected lanes. See [`docs/subtrack-selector.md`](docs/subtrack-selector.md)
 for its design.
+
+**Note that reordering currently has no visible effect.** The dialog records an
+order, but sections are drawn in code-point order of their group key — the lane
+order defect described above. The ordering UI is wired and correct; it becomes
+meaningful if that defect is ever fixed upstream.
 
 ## Development
 
