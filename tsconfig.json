@@ -27,8 +27,12 @@
     // noUnused* overlap with @typescript-eslint/no-unused-vars, can disable if duplicative
     // "noUnusedLocals": true,
     // "noUnusedParameters": true,
-    // use Node's module resolution algorithm, instead of the legacy TS one
-    "moduleResolution": "node",
+    // "bundler", not "node". @jbrowse/core 5 is ESM-only and publishes its 234
+    // subpaths through an `exports` map; Node10 resolution does not read
+    // `exports` at all, so every `@jbrowse/core/*` import fails TS2307 while
+    // rollup still externalises it happily -- a bundle that builds and has no
+    // types. Matches what jbrowse-components itself uses.
+    "moduleResolution": "bundler",
     // transpile JSX to React.createElement
     "jsx": "react",
     // interop between ESM and CJS modules. Recommended by TS
