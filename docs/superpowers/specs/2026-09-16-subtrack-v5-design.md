@@ -94,8 +94,12 @@ unchanged with its tests. Dedupes on label (labels are lane identity), drops
 selections absent from the catalog so a retired lane degrades a stale session
 gracefully, and falls back to catalog defaults when the user has not chosen.
 
-Its output feeds both the adapter's lane list and the display's
-`hiddenGroupKeys`.
+**Visibility is display-side only.** The adapter stamps every lane in the
+catalog, regardless of selection; hiding is purely `hiddenGroupKeys` on the
+display. This is not a detail — the adapter cache keys on the config object, so
+rewriting the adapter's lane list on each toggle would fork the cache and
+re-parse the file per toggle. Stamping everything once means a lane toggle costs
+a relayout and no RPC.
 
 ### SubtrackSelector — salvaged, ported
 
