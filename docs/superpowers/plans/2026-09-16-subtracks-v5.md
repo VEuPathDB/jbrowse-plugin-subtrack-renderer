@@ -551,15 +551,17 @@ export default ConfigurationSchema(
       description:
         'array of {label, featureFilters, metadata?} in stacking order; first match wins',
     },
-  },
-  {
     /**
-     * #slot subadapter
+     * #slot
      * The adapter supplying the features.
      */
-    explicitlyTyped: true,
-    preProcessSnapshot: (snap: Record<string, unknown>) => snap,
+    subadapter: {
+      type: 'frozen',
+      defaultValue: null,
+      description: 'the adapter whose features get stamped with a lane',
+    },
   },
+  { explicitlyTyped: true },
 )
 ```
 
@@ -945,10 +947,16 @@ Then deliberately break it — change `LinearBasicDisplay` to `LinearBasicDispla
 `src/displayExtension/index.ts`:
 
 ```typescript
+import { getConf } from '@jbrowse/core/configuration'
 import { extendDisplayType } from '@jbrowse/core/pluggableElementTypes'
+import { getContainingTrack } from '@jbrowse/core/util'
 import { types } from '@jbrowse/mobx-state-tree'
 
+import { resolveSubtracks } from '../resolveSubtracks.ts'
+
 import './registry.d.ts'
+
+import type { Lane } from '../SubtrackAdapter/laneKey.ts'
 
 import type PluginManager from '@jbrowse/core/PluginManager'
 import type { IAnyModelType } from '@jbrowse/mobx-state-tree'
@@ -1054,9 +1062,21 @@ Extend the `.actions()` block from Task 9 with a `trackMenuItems` override that 
       .actions(self => {
         const superTrackMenuItems = self.trackMenuItems
         return {
-          applySubtrackSelection(selectedLabels: string[], allLabels: string[]) {
-            const hidden = allLabels.filter(l => !selectedLabels.includes(l))
-            self.setHiddenGroupKeys(new Set(hidden))
+          applySubtrackSelection(selectedLabels: string[]) {
+            // The catalog lives on the adapter config; resolveSubtracks dedupes
+            // it and drops selections naming a lane the config has retired, so
+            // a stale session degrades instead of hiding real lanes.
+            const catalog = getConf(getContainingTrack(self), [
+              'adapter',
+              'lanes',
+            ]) as Lane[]
+            const resolved = resolveSubtracks(catalog, selectedLabels)
+            const keep = new Set(resolved.map(l => l.label))
+            self.setHiddenGroupKeys(
+              new Set(
+                catalog.map(l => l.label).filter(label => !keep.has(label)),
+              ),
+            )
             self.setSubtrackSelectorOpen(false)
           },
           trackMenuItems() {
@@ -1073,6 +1093,12 @@ Extend the `.actions()` block from Task 9 with a `trackMenuItems` override that 
 ```
 
 Note the super-capture: MST actions capture the base implementation before overriding. This is the normal action pattern — it is only `afterAttach` that must **not** chain to super, because the MST fork auto-chains lifecycle hooks and calling it installs every fetch autorun twice.
+
+`resolveSubtracks` also returns the lanes in selection order. That ordering is
+**inert on stock v5** — `featureGroupSections` sorts sections by
+`compareGroupKeys`, which is code-point — and becomes meaningful only once the
+deferred upstream ask lands. Keep it wired anyway; discarding it now means
+rediscovering it later.
 
 - [ ] **Step 2: Confirm the setter name is real**
 
