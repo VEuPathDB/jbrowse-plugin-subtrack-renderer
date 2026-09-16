@@ -136,12 +136,40 @@ Two user-visible defects, both in `FEATURE_GROUP_BY_DIMENSIONS.attribute`:
 Neither blocks shipping. Both are fixed by one small upstream change, deferred
 below.
 
+## Explicitly out of scope: runtime ad-hoc lanes
+
+A reader picking any feature attribute from a discovered list and splitting the
+track on it, with no configuration. Rejected for now: VEuPathDB's lanes are
+editorial (IntronJunctions, InterPro domains, MS peptides, synteny), declared in
+track config with labels and facet metadata. Nobody types an attribute name at
+runtime on our path.
+
+Taking this on would also make the upstream discovery work a **prerequisite**
+rather than a contribution, putting delivery back behind GMOD's review — the
+thing the adapter approach was chosen to avoid.
+
 ## Deferred
 
-- **Upstream PR:** give the `attribute` dimension an explicit value order and a
-  label format (~30 LOC, cosmetic upstream). A real gap: the multi-row display
-  has `rowOrder`, `groupBy` has nothing. Sent after the plugin works, so we are
-  never blocked on review and the PR arrives with a working consumer behind it.
+- **Upstream PR: bring the `attribute` group-by dimension up to parity with the
+  `partitionField` it is the sibling of.** Three gaps, all of which this work
+  hit, and all of which the multi-row display has already solved:
+
+  | | `partitionField` (multi-row) | `attribute` (groupBy) |
+  | --- | --- | --- |
+  | Attribute discovery | `partitionCandidates`, from `collectPartitionCandidates` | none — `GroupByDialog` is a free-text `TextField` |
+  | Explicit order | `rowOrder` slot | none — `featureGroupSections` sorts code-point |
+  | Section label | the raw partition value | `` `${attribute}: ${value}` `` |
+
+  Mostly a matter of extracting what already exists into a shared module:
+  `collectPartitionCandidates` (`MultiRowGetFeaturesRPC/packMultiRowFeatures.ts`)
+  and the cross-region union in
+  `LinearMultiRowFeatureDisplay/partitionFields.ts`. Estimated 60-80 LOC plus
+  tests. Sent after the plugin works, so we are never blocked on review and the
+  PR arrives with a working consumer behind it.
+
+  Note the discovery list is sampled from **loaded** features, so it depends on
+  what is in view; multi-row handles this by unioning across regions, since two
+  regions may be served by adapters that saw different optional columns.
 - **Per-lane coordinate transforms (synteny).** One lane per organism, syntenic
   spans re-fitted to the reference's visible region. v5 has
   `MultiWaySyntenyDisplay` — "a per-window, anchor-star, one-affine-frame-per-genome
