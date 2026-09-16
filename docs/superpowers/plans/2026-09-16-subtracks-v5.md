@@ -935,7 +935,7 @@ pnpm typecheck && git add -A && git commit -m "feat: salvage resolveSubtracks fr
 ## Task 9: Display extension — registry augmentation and menu
 
 **Files:**
-- Create: `src/displayExtension/registry.d.ts`, `src/displayExtension/index.ts`
+- Create: `src/displayExtension/registry.ts`, `src/displayExtension/index.ts`
 - Modify: `src/index.ts`
 
 - [ ] **Step 1: Declare the registry entry**
