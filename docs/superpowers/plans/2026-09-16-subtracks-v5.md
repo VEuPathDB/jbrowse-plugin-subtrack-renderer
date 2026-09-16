@@ -733,7 +733,7 @@ export default class SubtrackAdapter extends BaseFeatureDataAdapter {
         error: e => { observer.error(e) },
         complete: () => { observer.complete() },
       })
-    }, opts?.signal)
+    })
   }
 }
 ```
@@ -746,7 +746,9 @@ pnpm test src/SubtrackAdapter/SubtrackAdapter.test.ts
 
 Expected: PASS, 3 tests.
 
-If `ObservableCreate`'s second argument does not accept `opts?.signal`, check its signature in `/home/jbrestel/jbrowse2/jb-v5/packages/core/src/util/rxjs.ts:18` and match it — v5 moved cancellation back to `AbortSignal`, so the parameter is a signal, not a stop token.
+**No cancellation argument, deliberately.** `ObservableCreate`'s second parameter drifted between published beta.8 (`stopToken?: StopToken`) and upstream main (`signal?: AbortSignal`). We do not need it: this adapter is a pass-through, and the sub-adapter's own `getFeatures(region, opts)` receives `opts` and handles cancellation itself, so it propagates without our help. Omitting the argument sidesteps the drift rather than betting on one side.
+
+**Verify APIs against `node_modules`, NOT against the `jb-v5` worktree.** That worktree is upstream main -- 566 commits past the `v5.0.0-beta.8` tag we install -- and its signatures do not all match the published package. This exact trap produced a wrong `ObservableCreate` call in an earlier draft of this plan. Use `node_modules/@jbrowse/core/esm/**/*.d.ts` as the authority; read `jb-v5` only for implementation context.
 
 - [ ] **Step 6: Register the adapter**
 
