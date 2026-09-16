@@ -26,7 +26,7 @@
 | `src/SubtrackAdapter/index.ts` | `addAdapterType` registration |
 | `src/resolveSubtracks.ts` | **Salvaged verbatim** from `init-dev` |
 | `src/SubtrackSelector/*` | **Salvaged** from `init-dev`, MUI audited |
-| `src/displayExtension/registry.d.ts` | `DisplayTypeRegistry` augmentation for `LinearBasicDisplay` |
+|  `src/displayExtension/registry.ts` | `DisplayTypeRegistry` augmentation for `LinearBasicDisplay` |
 | `src/displayExtension/index.ts` | `extendDisplayType` — menu item, dialog, `hiddenGroupKeys` |
 | `src/index.ts` | Plugin class, `install()` only |
 
