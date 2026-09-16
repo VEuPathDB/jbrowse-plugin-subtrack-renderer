@@ -1346,3 +1346,32 @@ that is the mistake that produced three separate type bugs in the v4 plugin.
 `groupBy`.** That is a deliberate compile-against-beta.8 / run-against-main gap,
 confined to a feature we never import. Anything that behaves oddly there and not
 in tests should be suspected of being version drift first.
+
+---
+
+## Decision: no tarball pinning (2026-09-16)
+
+Considered and rejected building main and pinning tarballs to unblock the
+`displayHiddenGroupKeys` override.
+
+**Why rejected.** Every package on main carries version `5.0.0-beta.8` — the
+same string as the published release, 89 commits apart on core/canvas alone. A
+tarball packed from main therefore declares `workspace:^` deps that resolve to
+the *published* beta.8, silently mixing a main build of core with published
+`render-core` and `display-kit`. Avoiding that means packing and overriding the
+whole transitive closure (`plugin-canvas` alone pulls 7 workspace deps), then
+unwinding it when a real tag lands.
+
+**Why unnecessary.** The override is an MST `.views()` block adding a member.
+Adding a view the base type does not declare is legal TypeScript, so it compiles
+against beta.8; at runtime the host supplies `HiddenGroupsMixin` and later views
+win, so the override takes effect.
+
+**The risk this accepts, and how it is caught.** Typing the hook name wrong adds
+an unused view instead of overriding, and nothing complains — the same silent
+class as `Core-extendWorker`. It is caught behaviourally: toggle a lane in the
+browser against `jb-v5` and confirm it hides. Do not treat a green jsdom test as
+evidence here.
+
+When a beta ships with `groupBy`, bump the version and the compiler starts
+checking the override for free.
