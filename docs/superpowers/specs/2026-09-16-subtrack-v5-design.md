@@ -150,8 +150,9 @@ thing the adapter approach was chosen to avoid.
 
 ## Deferred
 
-- **Upstream PR: bring the `attribute` group-by dimension up to parity with the
-  `partitionField` it is the sibling of.** Three gaps, all of which this work
+- **NOT PURSUED (decided 2026-09-16): upstream parity for the `attribute`
+  group-by dimension.** Recorded because the gaps are real and someone will
+  rediscover them, not because anyone is planning to close them. Three gaps, all of which this work
   hit, and all of which the multi-row display has already solved:
 
   | | `partitionField` (multi-row) | `attribute` (groupBy) |
@@ -160,7 +161,13 @@ thing the adapter approach was chosen to avoid.
   | Explicit order | `rowOrder` slot | none — `featureGroupSections` sorts code-point |
   | Section label | the raw partition value | `` `${attribute}: ${value}` `` |
 
-  Mostly a matter of extracting what already exists into a shared module:
+  We are **not** doing this work. `groupBy` is stock v5 and we consume it as
+  shipped; the two defects it would fix (code-point lane ordering, and labels
+  reading `subtrack: X`) are accepted. Revisit only if VEuPathDB decides lane
+  order must be editorial, which is the one that would actually force it.
+
+  For the record, were it ever picked up, it is mostly a matter of extracting
+  what already exists into a shared module:
   `collectPartitionCandidates` (`MultiRowGetFeaturesRPC/packMultiRowFeatures.ts`)
   and the cross-region union in
   `LinearMultiRowFeatureDisplay/partitionFields.ts`. Estimated 60-80 LOC plus

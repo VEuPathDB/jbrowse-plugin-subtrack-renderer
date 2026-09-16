@@ -1271,11 +1271,11 @@ git add src/displayExtension && git commit -m "feat: wire the selector dialog to
 
 The v4 doc asked for a `CanvasPlugin.exports` block and a layout-key hook. Both are obsolete: v5 removed the runtime `exports` channel for new plugin code, and we no longer need the layout hook.
 
-Replace it with the deferred ask from the spec: give the `attribute` group-by dimension an explicit value order and a label format. Record the two defects it fixes (code-point lane ordering; `"subtrack: X"` labels), cite `featureGroupSections` and `FEATURE_GROUP_BY_DIMENSIONS.attribute`, and note that the multi-row display already has `rowOrder` while `groupBy` has nothing.
+Replace it with a record of the two **accepted** defects and why they exist: give the `attribute` group-by dimension an explicit value order and a label format WOULD fix them, but we are not doing that work. Record the two defects it fixes (code-point lane ordering; `"subtrack: X"` labels), cite `featureGroupSections` and `FEATURE_GROUP_BY_DIMENSIONS.attribute`, and note that the multi-row display already has `rowOrder` while `groupBy` has nothing.
 
 - [ ] **Step 2: Write the README**
 
-Cover: what the plugin does, the config shape for a `SubtrackAdapter` track with `groupBy`, the JBrowse version it requires, and the two known cosmetic defects with a pointer to the upstream ask.
+Cover: what the plugin does, the config shape for a `SubtrackAdapter` track with `groupBy`, the JBrowse version it requires, and the two known cosmetic defects, recorded as accepted rather than planned.
 
 - [ ] **Step 3: Confirm the whole suite is green**
 
@@ -1297,7 +1297,7 @@ Expected: both confirmations print.
 - [ ] **Step 5: Commit and push**
 
 ```bash
-git add -A && git commit -m "docs: README and the revised upstream ask"
+git add -A && git commit -m "docs: README and the record of accepted upstream gaps"
 git push -u origin v5-rewrite
 ```
 
