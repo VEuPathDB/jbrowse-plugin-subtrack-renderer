@@ -148,7 +148,18 @@ npm view @jbrowse/core@5.0.0-beta.8 dependencies
 npm view @jbrowse/core@5.0.0-beta.8 peerDependencies
 ```
 
-Record the `@mui/material`, `react` and `@jbrowse/mobx-state-tree` ranges. Use **those** in the next step, not the ones written here.
+Recorded on 2026-09-16 against `@jbrowse/core@5.0.0-beta.8`. **Re-run the commands and prefer what they report** — this table is a convenience, not a source of truth:
+
+| Package | init-dev (v4) | core 5.0.0-beta.8 |
+| --- | --- | --- |
+| `@mui/material`, `@mui/system` | `^7.3.11` | **`^9.4.0`** |
+| `@mui/x-data-grid` | `^8.28.2` | **`^9.13.0`** |
+| `@jbrowse/mobx-state-tree` | `^5.10.2` | **`^6.5.1`** |
+| `mobx` | `^6.15.4` | **`^7.0.3`** |
+| `mobx-react` | `^9.2.2` | **`^10.0.2`** |
+| `react` / `react-dom` (peer) | `>=18.0.0` | **`>=19.0.0`** |
+
+Four of those are **major** bumps, not just MUI. `@jbrowse/mobx-state-tree` and `@mui/material` are the two whose types cross the plugin boundary, so a second copy of either is not a duplicate-install nit — upstream measured this on the Apollo plugin: misaligned deps produced **~500 type errors, none of which named duplication as the cause**. MST reports `[$type]` missing from every `types.model` argument; MUI reports palette members missing. Step 4 is what catches it.
 
 - [ ] **Step 3: Repin dependencies**
 
