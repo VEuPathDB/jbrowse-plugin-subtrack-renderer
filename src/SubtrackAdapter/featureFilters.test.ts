@@ -33,6 +33,8 @@ test('range filters are half-open: min inclusive, max exclusive', () => {
 })
 
 test('a non-numeric value never satisfies a range', () => {
-  expect(matchesFilters(feat({ score: 'high' }), { score: { min: 0, max: 9 } })).toBe(false)
+  expect(
+    matchesFilters(feat({ score: 'high' }), { score: { min: 0, max: 9 } }),
+  ).toBe(false)
   expect(matchesFilters(feat({}), { score: { min: 0, max: 9 } })).toBe(false)
 })

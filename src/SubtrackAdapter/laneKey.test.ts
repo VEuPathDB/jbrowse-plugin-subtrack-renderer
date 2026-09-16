@@ -37,6 +37,8 @@ test('a lane with empty filters is a catch-all and swallows the rest', () => {
     { label: 'Introns', featureFilters: { type: 'intron' } },
     { label: 'Everything else', featureFilters: {} },
   ]
-  expect(laneKeyFor(feat({ type: 'exon' }), withCatchAll)).toBe('Everything else')
+  expect(laneKeyFor(feat({ type: 'exon' }), withCatchAll)).toBe(
+    'Everything else',
+  )
   expect(laneKeyFor(feat({ type: 'intron' }), withCatchAll)).toBe('Introns')
 })
