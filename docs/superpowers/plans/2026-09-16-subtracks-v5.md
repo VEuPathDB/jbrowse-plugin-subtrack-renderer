@@ -942,10 +942,19 @@ pnpm typecheck && git add -A && git commit -m "feat: salvage resolveSubtracks fr
 
 `extendDisplayType` is typed as `N extends DisplayTypeName`, where `DisplayTypeName = keyof DisplayTypeRegistry`. Core declares `DisplayTypeRegistry` empty and only two in-tree displays augment it — `LinearBasicDisplay` is **not** one. Augmentation is additive, so declare it here.
 
-`src/displayExtension/registry.d.ts`:
+**Verified working on 2026-09-16** — this exact file typechecked in a probe
+against the installed packages. Note it is `registry.ts`, **not** `registry.d.ts`:
+a `.d.ts` is ambient and would apply without being imported, but we want the
+augmentation tied to an explicit import so it is obvious what loads it.
+
+`src/displayExtension/registry.ts`:
 
 ```typescript
-import type { LinearBasicDisplayStateModel } from '@jbrowse/plugin-canvas/LinearBasicDisplay/stateModel'
+import type stateModelFactory from '@jbrowse/plugin-canvas/LinearBasicDisplay/stateModel'
+
+// Derived from the real factory rather than hand-written: upstream drift
+// becomes a compile error here instead of a silently wrong augmentation.
+type LinearBasicDisplayStateModel = ReturnType<typeof stateModelFactory>
 
 declare module '@jbrowse/core/PluginManager' {
   interface DisplayTypeRegistry {
@@ -954,13 +963,17 @@ declare module '@jbrowse/core/PluginManager' {
 }
 ```
 
-If that exported type name does not exist, check what the subpath actually exports:
+**Why `ReturnType<typeof stateModelFactory>` and not a named import:** the
+subpath `@jbrowse/plugin-canvas/LinearBasicDisplay/stateModel` exports the
+factory as its default and `LinearBasicDisplayModel` (the `Instance<>` type),
+but `LinearBasicDisplayStateModel` itself is declared **without `export`**
+(`esm/LinearBasicDisplay/model.d.ts:1289`). The `Instance<>` type is the wrong
+one here — `extendDisplayType` hands the callback the *model type*, not an
+instance. Reconstructing it off the factory gets the right type without copying
+anything.
 
-```bash
-grep -n "^export" /home/jbrestel/jbrowse2/jb-v5/plugins/canvas/src/LinearBasicDisplay/model.ts | head
-```
-
-Use the exported state-model type name you find. **Do not hand-copy the type** — import it and let the compiler catch drift.
+This matches how the two in-tree displays declare their own entries, e.g.
+`LGVSyntenyDisplay/model.ts`.
 
 - [ ] **Step 2: Verify the augmentation actually reaches the compiler**
 
