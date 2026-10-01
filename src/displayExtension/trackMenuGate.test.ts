@@ -5,10 +5,11 @@ import installDisplayExtension from './index'
 import type { MenuItem } from '@jbrowse/core/ui'
 import type { IAnyModelType } from '@jbrowse/mobx-state-tree'
 
-// The gate reads the containing track's adapter type through core helpers that
-// need a real session tree. Only these two reads matter here, so they are
-// stubbed rather than a whole runtime stood up.
-let adapterType = 'Gff3TabixAdapter'
+// The gate reads the track's `metadata.subtracks` catalog and the display's
+// `facet.field` through core helpers that need a real session tree. Only those
+// reads matter here, so they are stubbed rather than a whole runtime stood up.
+let catalog: unknown[] = []
+let facetField = ''
 
 // Spread the real modules: core's own internals import these same barrels, so
 // replacing them wholesale breaks the package being tested.
@@ -20,8 +21,15 @@ jest.mock('@jbrowse/core/util', () => ({
 
 jest.mock('@jbrowse/core/configuration', () => ({
   ...jest.requireActual('@jbrowse/core/configuration'),
-  getConf: (_track: unknown, path: string[]) =>
-    path[1] === 'type' ? adapterType : [],
+  getConf: (_node: unknown, path: string | string[]) => {
+    if (path === 'metadata') {
+      return { subtracks: catalog }
+    }
+    if (Array.isArray(path) && path[0] === 'facet' && path[1] === 'field') {
+      return facetField
+    }
+    return undefined
+  },
 }))
 
 const BASE_MENU: MenuItem[] = [
@@ -74,14 +82,27 @@ function labels(items: MenuItem[]) {
 }
 
 test('a subtrack track trades "Group by..." for "Select subtracks..."', () => {
-  adapterType = 'SubtrackAdapter'
+  catalog = [{ label: 'Genes' }]
+  facetField = 'subtrack'
   const menu = labels(extendedDisplay().trackMenuItems())
   expect(menu).toContain('Select subtracks...')
   expect(menu).not.toContain('Group by...')
 })
 
 test('an ordinary track keeps "Group by..." and gains nothing', () => {
-  adapterType = 'Gff3TabixAdapter'
+  catalog = []
+  facetField = ''
+  const menu = labels(extendedDisplay().trackMenuItems())
+  expect(menu).toContain('Group by...')
+  expect(menu).not.toContain('Select subtracks...')
+})
+
+test('a catalog without a facet field is not a subtrack track', () => {
+  // Both halves are required: a catalog names lanes, the facet field is what
+  // makes them sections. With no field there is nothing for the picker to
+  // write a domain to, so the stock menu must survive untouched.
+  catalog = [{ label: 'Genes' }]
+  facetField = ''
   const menu = labels(extendedDisplay().trackMenuItems())
   expect(menu).toContain('Group by...')
   expect(menu).not.toContain('Select subtracks...')

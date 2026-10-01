@@ -4,12 +4,12 @@ import {
   resolveSubtracks,
 } from './resolveSubtracks'
 
-import type { Lane as Subtrack } from './SubtrackAdapter/laneKey'
+import type { Lane as Subtrack } from './subtrackCatalog'
 
 const CATALOG: Subtrack[] = [
-  { label: 'Genes', featureFilters: { type: 'gene' }, visible: true },
-  { label: 'Matches', featureFilters: { type: 'match' }, visible: false },
-  { label: 'Repeats', featureFilters: { type: 'repeat' }, visible: true },
+  { label: 'Genes', metadata: { type: 'gene' }, visible: true },
+  { label: 'Matches', metadata: { type: 'match' }, visible: false },
+  { label: 'Repeats', metadata: { type: 'repeat' }, visible: true },
 ]
 
 // the warn-once throttle is module state, so it leaks between tests
@@ -21,14 +21,14 @@ describe('dedupeCatalog', () => {
   it('keeps the first entry for a duplicated label and warns', () => {
     const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
     const dupes: Subtrack[] = [
-      { label: 'Genes', featureFilters: { type: 'gene' }, visible: true },
-      { label: 'Genes', featureFilters: { type: 'other' }, visible: true },
+      { label: 'Genes', metadata: { type: 'gene' }, visible: true },
+      { label: 'Genes', metadata: { type: 'other' }, visible: true },
     ]
 
     const result = dedupeCatalog(dupes)
 
     expect(result).toHaveLength(1)
-    expect(result[0]!.featureFilters).toEqual({ type: 'gene' })
+    expect(result[0]!.metadata).toEqual({ type: 'gene' })
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('Genes'))
     warn.mockRestore()
   })
@@ -43,15 +43,15 @@ describe('dedupeCatalog', () => {
   it('names a thrice-repeated label only once in the warning', () => {
     const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
     const triple: Subtrack[] = [
-      { label: 'Genes', featureFilters: { type: 'gene' }, visible: true },
-      { label: 'Genes', featureFilters: { type: 'other' }, visible: true },
-      { label: 'Genes', featureFilters: { type: 'third' }, visible: true },
+      { label: 'Genes', metadata: { type: 'gene' }, visible: true },
+      { label: 'Genes', metadata: { type: 'other' }, visible: true },
+      { label: 'Genes', metadata: { type: 'third' }, visible: true },
     ]
 
     const result = dedupeCatalog(triple)
 
     expect(result).toHaveLength(1)
-    expect(result[0]!.featureFilters).toEqual({ type: 'gene' })
+    expect(result[0]!.metadata).toEqual({ type: 'gene' })
     expect(warn).toHaveBeenCalledTimes(1)
     const message = warn.mock.calls[0]![0] as string
     expect(message.match(/Genes/g)).toHaveLength(1)
@@ -64,8 +64,8 @@ describe('dedupeCatalog', () => {
     // new array reference with identical content -- an identity-keyed cache
     // would miss and warn twice here
     const build = (): Subtrack[] => [
-      { label: 'Genes', featureFilters: { type: 'gene' }, visible: true },
-      { label: 'Genes', featureFilters: { type: 'other' }, visible: true },
+      { label: 'Genes', metadata: { type: 'gene' }, visible: true },
+      { label: 'Genes', metadata: { type: 'other' }, visible: true },
     ]
 
     dedupeCatalog(build())

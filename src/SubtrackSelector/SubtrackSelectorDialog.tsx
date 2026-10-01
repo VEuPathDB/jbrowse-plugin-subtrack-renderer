@@ -17,7 +17,7 @@ import { facetedSubtrackModelF } from './facetedSubtrackModel'
 import { toRows } from './toRows'
 import { resolveSubtracks } from '../resolveSubtracks'
 
-import type { Lane as Subtrack } from '../SubtrackAdapter/laneKey'
+import type { Lane as Subtrack } from '../subtrackCatalog'
 
 /**
  * All the dialog needs of the display. Deliberately STRUCTURAL rather than the

@@ -1,4 +1,4 @@
-import type { Lane as Subtrack } from './SubtrackAdapter/laneKey'
+import type { Lane as Subtrack } from './subtrackCatalog'
 
 // resolveSubtracks runs inside a MobX computed that recomputes on every config
 // change, and the caller hands us a freshly cloned array each time (getConf ->

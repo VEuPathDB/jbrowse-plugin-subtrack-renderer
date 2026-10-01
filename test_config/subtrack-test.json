@@ -2,60 +2,12 @@
   "assemblies": [
     {
       "name": "volvox",
-      "aliases": [
-        "vvx"
-      ],
       "sequence": {
         "type": "ReferenceSequenceTrack",
         "trackId": "volvox_refseq",
-        "metadata": {
-          "date": "2020-08-20"
-        },
-        "formatAbout": {
-          "config": "jexl:{extraField:'important data'}"
-        },
         "adapter": {
           "type": "TwoBitAdapter",
-          "twoBitLocation": {
-            "uri": "http://localhost:3000/test_data/volvox/volvox.2bit",
-            "locationType": "UriLocation"
-          }
-        },
-        "displays": [
-          {
-            "type": "LinearReferenceSequenceDisplay",
-            "displayId": "volvox_refseq-LinearReferenceSequenceDisplay"
-          },
-          {
-            "type": "LinearGCContentDisplay",
-            "displayId": "volvox_refseq-LinearGCContentDisplay",
-            "windowSize": 10,
-            "windowDelta": 10
-          }
-        ]
-      },
-      "refNameAliases": {
-        "adapter": {
-          "type": "FromConfigAdapter",
-          "adapterId": "W6DyPGJ0UU",
-          "features": [
-            {
-              "refName": "ctgA",
-              "uniqueId": "alias1",
-              "aliases": [
-                "A",
-                "contigA"
-              ]
-            },
-            {
-              "refName": "ctgB",
-              "uniqueId": "alias2",
-              "aliases": [
-                "B",
-                "contigB"
-              ]
-            }
-          ]
+          "uri": "http://localhost:3000/test_data/volvox/volvox.2bit"
         }
       }
     }
@@ -64,65 +16,50 @@
     {
       "type": "FeatureTrack",
       "trackId": "subtrack_demo",
-      "name": "Subtrack demo (lanes by feature type)",
-      "assemblyNames": [
-        "volvox"
-      ],
+      "name": "Subtrack demo",
+      "assemblyNames": ["volvox"],
+      "metadata": {
+        "subtracks": [
+          {
+            "label": "gene",
+            "displayName": "Genes",
+            "metadata": {
+              "organism": "Volvox carteri",
+              "study": "Reference",
+              "kind": "Annotation"
+            }
+          },
+          {
+            "label": "mRNA",
+            "displayName": "mRNAs",
+            "metadata": {
+              "organism": "Volvox carteri",
+              "study": "Reference",
+              "kind": "Transcript"
+            }
+          },
+          {
+            "label": "contig",
+            "displayName": "Contigs",
+            "metadata": {
+              "organism": "Volvox carteri",
+              "study": "Assembly",
+              "kind": "Structural"
+            }
+          }
+        ]
+      },
       "adapter": {
-        "type": "SubtrackAdapter",
-        "lanes": [
-          {
-            "label": "Genes",
-            "featureFilters": {
-              "type": "gene"
-            },
-            "metadata": {
-              "organism": "Volvox carteri",
-              "study": "Reference"
-            }
-          },
-          {
-            "label": "mRNAs",
-            "featureFilters": {
-              "type": "mRNA"
-            },
-            "metadata": {
-              "organism": "Volvox carteri",
-              "study": "Reference"
-            }
-          },
-          {
-            "label": "Contigs",
-            "featureFilters": {
-              "type": "contig"
-            },
-            "metadata": {
-              "organism": "Volvox carteri",
-              "study": "Assembly"
-            }
-          }
-        ],
-        "subadapter": {
-          "type": "Gff3TabixAdapter",
-          "gffGzLocation": {
-            "uri": "http://localhost:3000/test_data/volvox/volvox.sort.gff3.gz",
-            "locationType": "UriLocation"
-          },
-          "index": {
-            "location": {
-              "uri": "http://localhost:3000/test_data/volvox/volvox.sort.gff3.gz.tbi",
-              "locationType": "UriLocation"
-            }
-          }
-        }
+        "type": "Gff3TabixAdapter",
+        "uri": "http://localhost:3000/test_data/volvox/volvox.sort.gff3.gz"
       },
       "displays": [
         {
           "type": "LinearBasicDisplay",
           "displayId": "subtrack_demo-LinearBasicDisplay",
-          "groupBy": {
-            "type": "attribute",
-            "attribute": "subtrack"
+          "facet": {
+            "field": "type",
+            "domain": ["contig", "mRNA", "gene"]
           }
         }
       ]

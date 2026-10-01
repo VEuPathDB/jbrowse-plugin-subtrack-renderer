@@ -9,7 +9,7 @@ import { resolveSubtracks } from '../resolveSubtracks'
 
 import './registry'
 
-import type { Lane } from '../SubtrackAdapter/laneKey'
+import type { Lane } from '../subtrackCatalog'
 import type PluginManager from '@jbrowse/core/PluginManager'
 import type { MenuItem } from '@jbrowse/core/ui'
 import type { IAnyModelType, IAnyStateTreeNode } from '@jbrowse/mobx-state-tree'
@@ -22,47 +22,68 @@ const SubtrackSelectorDialog = lazy(
  * Returned unchanged when nothing is hidden. A module constant, not a fresh Set
  * per read: downstream layout memos compare by identity, so a new empty Set
  * every call reads as a change on every recompute.
- *
- * Core spells this `NO_HIDDEN_GROUPS` in `@jbrowse/display-kit`, which is NOT on
- * core's ReExports list — importing it would bundle a private copy of that
- * package. Declaring our own costs one empty Set.
  */
 const NONE: ReadonlySet<string> = new Set()
 
-/**
- * This extension composes onto EVERY LinearBasicDisplay, including tracks with
- * nothing to do with subtracks, so every behavior it adds is gated on the track
- * actually being configured for them.
- */
-function isSubtrackTrack(self: unknown) {
+function trackMetadata(self: unknown): Record<string, unknown> {
   try {
     return (
-      getConf(getContainingTrack(self), ['adapter', 'type']) ===
-      'SubtrackAdapter'
+      (getConf(getContainingTrack(self as IAnyStateTreeNode), 'metadata') as
+        Record<string, unknown> | undefined) ?? {}
     )
   } catch {
-    // a display not yet attached to a track has no adapter to ask about
-    return false
+    // a display not yet attached to a track has no config to ask
+    return {}
   }
+}
+
+/**
+ * The declared lanes, from the track's generic `metadata` slot. JBrowse has no
+ * notion of per-section metadata — a section is `{key, label}` derived from the
+ * data — so the catalog is the one thing this plugin contributes beyond the
+ * picker itself.
+ */
+function catalogOf(self: unknown): Lane[] {
+  const lanes = trackMetadata(self).subtracks
+  return Array.isArray(lanes) ? (lanes as Lane[]) : []
+}
+
+/**
+ * The field the display facets on, '' while ungrouped. Read through one helper
+ * because `self` is `any` under the state-model cast, so every call site would
+ * otherwise widen an untyped value into `getConf`.
+ */
+function facetFieldOf(self: unknown): string {
+  return (getConf(self as IAnyStateTreeNode, ['facet', 'field']) ??
+    '') as string
 }
 
 export default function installDisplayExtension(pluginManager: PluginManager) {
   extendDisplayType(pluginManager, 'LinearBasicDisplay', stateModel =>
     (stateModel as IAnyModelType)
       .props({
+        /**
+         * The reader's chosen lanes, in their chosen order. `undefined` means
+         * "not chosen yet", which resolveSubtracks reads as "fall back to the
+         * catalog defaults" — so undefined and [] are different answers.
+         *
+         * A prop, not a volatile: HiddenGroupsMixin's own `hiddenGroups` is
+         * volatile and dies on reload, which is fine for a chip the reader
+         * flicked off and wrong for a curated lane selection.
+         */
         subtrackSelection: types.maybe(types.array(types.string)),
       })
       .views(self => ({
         get subtrackCatalog(): Lane[] {
-          if (!isSubtrackTrack(self)) {
-            return []
-          }
-          return (
-            (getConf(getContainingTrack(self as IAnyStateTreeNode), [
-              'adapter',
-              'lanes',
-            ]) as Lane[] | undefined) ?? []
-          )
+          return catalogOf(self)
+        },
+        /**
+         * Subtracks are configured when the track declares a catalog AND the
+         * display facets on something. Without a facet field there are no
+         * sections to pick among, so the picker would have nothing to write to.
+         */
+        get hasSubtracks(): boolean {
+          return catalogOf(self).length > 0 && !!facetFieldOf(self)
         },
       }))
       .views(self => ({
@@ -72,13 +93,13 @@ export default function installDisplayExtension(pluginManager: PluginManager) {
          * and drops selections naming a retired lane, so a stale session
          * degrades instead of hiding real lanes.
          *
-         * A getter, not an action: visibility is DERIVED from the selection, so
-         * there is no second copy of the truth, and the reader's own chip-hiding
-         * composes on top via HiddenGroupsMixin's `hiddenGroupKeys`.
+         * Derived rather than stored, so there is no second copy of the truth;
+         * the reader's own chip-hiding composes on top through
+         * HiddenGroupsMixin's `hiddenGroupKeys`.
          */
         get displayHiddenGroupKeys(): ReadonlySet<string> {
           const sel = self.subtrackSelection
-          if (!sel || !isSubtrackTrack(self)) {
+          if (!sel || !self.hasSubtracks) {
             return NONE
           }
           const catalog: Lane[] = self.subtrackCatalog
@@ -87,21 +108,34 @@ export default function installDisplayExtension(pluginManager: PluginManager) {
           )
           const hidden = catalog
             .map(l => l.label)
-            .filter(label => !keep.has(label))
+            .filter((label: string) => !keep.has(label))
           return hidden.length === 0 ? NONE : new Set(hidden)
         },
       }))
       .actions(self => ({
+        /**
+         * One reader action writes both halves: the order goes to the facet's
+         * `domain`, the membership to our own prop, which the hidden-keys getter
+         * derives from. `domain` is no part of `groupKeySpace`, so writing it
+         * does not reset what the reader hid from a chip.
+         */
         setSubtrackSelection(labels: string[]) {
           self.subtrackSelection = cast(labels)
+          const field = facetFieldOf(self)
+          if (field) {
+            self.setFacet({ field, domain: labels })
+          }
         },
         resetSubtrackSelection() {
           self.subtrackSelection = undefined
+          const field = facetFieldOf(self)
+          if (field) {
+            self.setFacet({ field, domain: [] })
+          }
         },
         openSubtrackSelector() {
-          // getDialogHost is `#api core/util`: "where a display puts a dialog it
-          // cannot mount itself". A display model holds no React component in
-          // v5, so this is the only route.
+          // `getDialogHost` is `#api core/util`: where a display puts a dialog it
+          // cannot mount itself. A v5 display model holds no React component.
           getDialogHost(self as IAnyStateTreeNode).queueDialog(handleClose => [
             SubtrackSelectorDialog,
             { display: self, handleClose },
@@ -113,14 +147,13 @@ export default function installDisplayExtension(pluginManager: PluginManager) {
         return {
           trackMenuItems() {
             const base = superTrackMenuItems() as MenuItem[]
-            if (!isSubtrackTrack(self)) {
+            if (!self.hasSubtracks) {
               return base
             }
-            // Upstream's "Group by..." calls applyGroupBy, which would replace
-            // our {type:'attribute', attribute:'subtrack'} wholesale. Picking
-            // Strand there makes the lanes vanish and leaves the lane-label
-            // hidden keys matching no section — a silent break, so the entry
-            // comes off on tracks we own. Every other track keeps it.
+            // "Group by..." rewrites the facet field wholesale, which would
+            // repoint the sections at a different key space and strand every
+            // catalog label. Our picker is the supported route on these tracks;
+            // every other track keeps the stock entry.
             return [
               ...base.filter(
                 item => !('label' in item) || item.label !== 'Group by...',

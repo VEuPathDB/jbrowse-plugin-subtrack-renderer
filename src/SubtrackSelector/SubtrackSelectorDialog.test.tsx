@@ -6,7 +6,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import SubtrackSelectorDialog from './SubtrackSelectorDialog'
 
 import type { SubtrackSelectorTarget } from './SubtrackSelectorDialog'
-import type { Lane as Subtrack } from '../SubtrackAdapter/laneKey'
+import type { Lane as Subtrack } from '../subtrackCatalog'
 
 /**
  * A plain object, not an MST display. That is the whole point of
@@ -18,12 +18,12 @@ import type { Lane as Subtrack } from '../SubtrackAdapter/laneKey'
 const catalog: Subtrack[] = [
   {
     label: 'Pf 3D7',
-    featureFilters: { organism: 'P. falciparum', strain: '3D7' },
+    metadata: { organism: 'P. falciparum', strain: '3D7' },
     visible: true,
   },
   {
     label: 'Pf HB3',
-    featureFilters: { organism: 'P. falciparum', strain: 'HB3' },
+    metadata: { organism: 'P. falciparum', strain: 'HB3' },
     // default-off, so the catalog default selection is just Pf 3D7
     visible: false,
   },

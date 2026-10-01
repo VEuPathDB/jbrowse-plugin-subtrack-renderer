@@ -1,6 +1,5 @@
 import Plugin from '@jbrowse/core/Plugin'
 
-import SubtrackAdapterF from './SubtrackAdapter'
 import installDisplayExtension from './displayExtension'
 
 import type PluginManager from '@jbrowse/core/PluginManager'
@@ -11,7 +10,6 @@ export default class SubtrackRendererPlugin extends Plugin {
   // Registration happens here, never in configure(): the pluggable-element
   // registry is frozen once createPluggableElements() has run.
   install(pluginManager: PluginManager) {
-    SubtrackAdapterF(pluginManager)
     installDisplayExtension(pluginManager)
   }
 }

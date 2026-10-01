@@ -1,25 +1,22 @@
 import { facetedSubtrackModelF } from './facetedSubtrackModel'
 import { toRows } from './toRows'
 
-import type { Lane as Subtrack } from '../SubtrackAdapter/laneKey'
+import type { Lane as Subtrack } from '../subtrackCatalog'
 
 const CATALOG: Subtrack[] = [
   {
     label: 'Pf 3D7',
-    featureFilters: { organism: 'P. falciparum' },
-    metadata: { strain: '3D7' },
+    metadata: { organism: 'P. falciparum', strain: '3D7' },
     visible: true,
   },
   {
     label: 'Pf HB3',
-    featureFilters: { organism: 'P. falciparum' },
-    metadata: { strain: 'HB3' },
+    metadata: { organism: 'P. falciparum', strain: 'HB3' },
     visible: true,
   },
   {
     label: 'Pv Sal-1',
-    featureFilters: { organism: 'P. vivax' },
-    metadata: { strain: 'Sal-1' },
+    metadata: { organism: 'P. vivax', strain: 'Sal-1' },
     visible: false,
   },
 ]
@@ -233,7 +230,6 @@ describe('facetedSubtrackModel', () => {
         ...CATALOG,
         {
           label: 'Pf mystery',
-          featureFilters: {},
           metadata: {},
           visible: true,
         },
