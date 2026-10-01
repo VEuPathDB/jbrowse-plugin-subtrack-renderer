@@ -16,8 +16,10 @@
     {
       "type": "FeatureTrack",
       "trackId": "subtrack_demo",
-      "name": "Subtrack demo",
-      "assemblyNames": ["volvox"],
+      "name": "Subtrack demo (opens on Genes only)",
+      "assemblyNames": [
+        "volvox"
+      ],
       "metadata": {
         "subtracks": [
           {
@@ -27,7 +29,8 @@
               "organism": "Volvox carteri",
               "study": "Reference",
               "kind": "Annotation"
-            }
+            },
+            "visible": true
           },
           {
             "label": "mRNA",
@@ -36,7 +39,8 @@
               "organism": "Volvox carteri",
               "study": "Reference",
               "kind": "Transcript"
-            }
+            },
+            "visible": false
           },
           {
             "label": "contig",
@@ -45,7 +49,8 @@
               "organism": "Volvox carteri",
               "study": "Assembly",
               "kind": "Structural"
-            }
+            },
+            "visible": false
           }
         ]
       },
@@ -58,8 +63,12 @@
           "type": "LinearBasicDisplay",
           "displayId": "subtrack_demo-LinearBasicDisplay",
           "facet": {
-            "field": "type",
-            "domain": ["contig", "mRNA", "gene"]
+            "field": "jexl:get(feature,'type')=='gene' ? 'gene' : get(feature,'type')=='mRNA' ? 'mRNA' : get(feature,'type')=='contig' ? 'contig' : ''",
+            "domain": [
+              "contig",
+              "mRNA",
+              "gene"
+            ]
           }
         }
       ]

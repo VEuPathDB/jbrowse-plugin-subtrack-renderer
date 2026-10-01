@@ -98,13 +98,19 @@ export default function installDisplayExtension(pluginManager: PluginManager) {
          * HiddenGroupsMixin's `hiddenGroupKeys`.
          */
         get displayHiddenGroupKeys(): ReadonlySet<string> {
-          const sel = self.subtrackSelection
-          if (!sel || !self.hasSubtracks) {
+          if (!self.hasSubtracks) {
             return NONE
           }
           const catalog: Lane[] = self.subtrackCatalog
+          const sel = self.subtrackSelection
+          // Undefined selection is not "show everything" -- it is "the reader
+          // has not chosen yet", and resolveSubtracks answers it with the
+          // catalog's own `visible` defaults. A track declaring hundreds of
+          // lanes opens on the handful it marks visible, not on all of them.
           const keep = new Set(
-            resolveSubtracks(catalog, [...sel]).map(l => l.label),
+            resolveSubtracks(catalog, sel ? [...sel] : undefined).map(
+              l => l.label,
+            ),
           )
           const hidden = catalog
             .map(l => l.label)
