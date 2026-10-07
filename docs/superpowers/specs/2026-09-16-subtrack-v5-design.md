@@ -1,5 +1,30 @@
 # Subtracks on JBrowse 5: design
 
+> **SUPERSEDED — historical record. Do not build from this.**
+> See [`README.md`](../../../README.md) for the current design.
+>
+> This document is kept because its *reasoning* is still the reasoning — the
+> argument for why subtracks should be configuration over stock JBrowse rather
+> than a renderer fork is what the plugin is built on. What changed is how much
+> of it we have to supply ourselves.
+>
+> Everything below describing a **`SubtrackAdapter`** is gone, deleted
+> 2026-09-30. The adapter existed to stamp a `subtrack` attribute onto each
+> feature so stock JBrowse could section on it; `facet.field` then learned to
+> read an attribute name directly, and our pipeline writes `subtrack` into the
+> GFF. There is no plugin code in the rendering path at all. With it went
+> `featureFilters`, the lane-membership filter language, and the whole idea that
+> a lane is defined by a predicate: a lane is now a value the data carries.
+>
+> `groupBy` was renamed **`facet: {field, domain}`**. Of the three gaps this
+> document records under "Deferred" as not-pursued, upstream has since closed
+> two — lane order (by `domain`) and attribute discovery (by `field` becoming a
+> `featureField` slot). Only the section-label gap remains open. See
+> [`docs/facet-upstream-gaps.md`](../../facet-upstream-gaps.md).
+>
+> The "Salvage ledger" at the end is still accurate about what came across from
+> `init-dev`, minus the adapter rows.
+
 **Date:** 2026-09-16
 **Status:** approved, pre-implementation
 **Supersedes:** the JBrowse 4.3.0 implementation on `init-dev` (PR #1)

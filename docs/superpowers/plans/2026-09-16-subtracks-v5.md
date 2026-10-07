@@ -1,5 +1,23 @@
 # Subtracks on JBrowse 5 — Implementation Plan
 
+> **EXECUTED AND SUPERSEDED — historical record. Do not execute this plan.**
+> See [`README.md`](../../../README.md) for what the plugin actually is.
+>
+> This plan was carried out in full, and then roughly half of what it built was
+> deleted. Every task below that creates, tests or wires `src/SubtrackAdapter/`
+> describes files that no longer exist: `facet.field` learned to read a feature
+> attribute directly, so the data carries `subtrack` and stock JBrowse sections
+> on it with no adapter in between. `groupBy` is now `facet: {field, domain}`,
+> and the plan's `groupBy: {type:'attribute', attribute:'subtrack'}` config is
+> silently ignored by current JBrowse.
+>
+> What survived, and is still live: `resolveSubtracks`, `SubtrackSelector/`, and
+> the `extendDisplayType` wiring — now reading its catalog from the track's
+> `metadata.subtracks` rather than from an adapter config.
+>
+> Kept for the record of how the work was sequenced and what it cost, not as
+> instructions.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Render VEuPathDB subtracks as stacked lanes on stock JBrowse 5, by stamping a `subtrack` attribute onto features in a wrapping adapter and letting `LinearBasicDisplay.groupBy` do the lane rendering it already does.

@@ -1,5 +1,5 @@
 /**
- * One subtrack lane, as declared on the display's `subtracks` config slot.
+ * One subtrack lane, as declared under the track's `metadata.subtracks`.
  *
  * The plugin no longer decides which features belong to a lane — the data does,
  * by carrying a `subtrack` attribute, and stock JBrowse groups on it through

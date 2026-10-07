@@ -1,5 +1,31 @@
 # Subtrack selector: choosing and ordering lanes
 
+> **The design is live; the surroundings it names are two rewrites out of date.**
+> This was written against the JBrowse 4 renderer and patched once for the
+> JBrowse 5 adapter, both of which have since been deleted. Read it for the
+> picker's design — that part is still what the code does — and ignore the
+> plumbing it describes.
+>
+> What to substitute as you read:
+>
+> | It says | It is now |
+> | --- | --- |
+> | `SubtrackFeatureDisplay`, "the renderer", `renderProps()`, blocks | stock `LinearBasicDisplay`; block rendering no longer exists |
+> | `SubtrackAdapter`, `lanes`, `src/SubtrackAdapter/laneKey.ts` | deleted; the catalog is `track.metadata.subtracks`, typed in `src/subtrackCatalog.ts` |
+> | `featureFilters` as a facet source | gone — a lane is a value the data carries, and `metadata` is the sole facet source |
+> | `hiddenGroupKeys`, `groupBy` | the `displayHiddenGroupKeys` hook, and `facet: {field, domain}` |
+> | `subtrackConfig.enabled` gating the menu item | a catalog *and* a facet field being present (`hasSubtracks`) |
+>
+> Three things it describes are unchanged and load-bearing: `subtrackSelection`
+> as one MST property carrying both membership and order; `undefined` meaning
+> "no choice yet, defer to the catalog" rather than "show everything"; and
+> dropping selected labels absent from the catalog, which is what lets a retired
+> lane degrade a stale session instead of crashing it. The corrected facet-count
+> algorithm under Edge cases is also still ours, and still guarded by a test.
+>
+> Selection order now reaches the renderer as stock `facet.domain`, so the
+> reordering UI that this document called inert is live.
+
 Status: **implemented and merged to init-dev** (2026-07-11)
 Date: 2026-07-11
 
