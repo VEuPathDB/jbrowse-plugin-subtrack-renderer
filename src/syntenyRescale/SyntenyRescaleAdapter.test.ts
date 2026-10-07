@@ -7,6 +7,7 @@ function feature(
   id: string,
   cols: { type: string; start: number; end: number },
   attrs: Record<string, string>,
+  subfeatures?: Feature[],
 ): Feature {
   return {
     id: () => id,
@@ -17,7 +18,10 @@ function feature(
           ? cols.end
           : name === 'type'
             ? cols.type
-            : attrs[name],
+            : name === 'subfeatures'
+              ? subfeatures
+              : attrs[name],
+    children: () => subfeatures,
     toJSON: () => ({ uniqueId: id, ...cols, ...attrs }),
   } as unknown as Feature
 }
@@ -204,5 +208,117 @@ describe('SyntenyRescaleAdapter', () => {
 
     // lowest native coordinate draws at the high end when the span is reversed
     expect(out[0]!.get('start')).toBeGreaterThan(out[1]!.get('start'))
+  })
+})
+
+describe('subfeatures', () => {
+  // a gene whose exons sit 4kb further along its own genome than the liftover
+  // puts the gene, so parent and children must move together or the glyph is
+  // drawn from two coordinate systems
+  function geneWithExons(id: string, start: number, nativeStart: number) {
+    const span = { syntenyId: 's1', spanIsReversed: '0' }
+    const cds = feature(
+      `${id}-cds`,
+      { type: 'CDS', start: start + 10, end: start + 60 },
+      {
+        ...span,
+        nativeStart: `${nativeStart + 10}`,
+        nativeEnd: `${nativeStart + 60}`,
+      },
+    )
+    const mrna = feature(
+      `${id}-mrna`,
+      { type: 'mRNA', start, end: start + 100 },
+      {
+        ...span,
+        nativeStart: `${nativeStart}`,
+        nativeEnd: `${nativeStart + 100}`,
+      },
+      [cds],
+    )
+    return feature(
+      id,
+      { type: 'gene', start, end: start + 100 },
+      {
+        ...span,
+        nativeStart: `${nativeStart}`,
+        nativeEnd: `${nativeStart + 100}`,
+      },
+      [mrna],
+    )
+  }
+
+  const TREE = [
+    geneWithExons('g1', 1000, 5000),
+    geneWithExons('g2', 1010, 9000),
+  ]
+
+  it('moves a transcript with its gene', async () => {
+    const out = await collect(adapterOver(TREE))
+
+    // g2, not g1: g1 holds the lowest native coordinate and so maps onto the
+    // box's own start, which is where it already was
+    const gene = out[1]!
+    const mrna = gene.get('subfeatures')![0]!
+    expect(gene.get('start')).not.toBe(1010)
+    expect(mrna.get('start')).toBe(gene.get('start'))
+    expect(mrna.get('end')).toBe(gene.get('end'))
+  })
+
+  it('keeps every part inside the whole', async () => {
+    // the invariant the design turns on: an exon outside its gene draws a glyph
+    // that cannot be read
+    for (const gene of await collect(adapterOver(TREE))) {
+      const lo = gene.get('start')
+      const hi = gene.get('end')
+      for (const mrna of gene.get('subfeatures') ?? []) {
+        expect(mrna.get('start')).toBeGreaterThanOrEqual(lo)
+        expect(mrna.get('end')).toBeLessThanOrEqual(hi)
+        for (const cds of mrna.get('subfeatures') ?? []) {
+          expect(cds.get('start')).toBeGreaterThanOrEqual(mrna.get('start'))
+          expect(cds.get('end')).toBeLessThanOrEqual(mrna.get('end'))
+        }
+      }
+    }
+  })
+
+  it('recurses to CDS under a transcript', async () => {
+    const out = await collect(adapterOver(TREE))
+
+    const cds = out[0]!.get('subfeatures')![0]!.get('subfeatures')![0]!
+    expect(cds.get('rescaledFrom')).toBe('1010-1060')
+  })
+
+  it('leaves a child with no native coordinates where it was', async () => {
+    const bare = feature(
+      'b-sub',
+      { type: 'CDS', start: 1020, end: 1050 },
+      { syntenyId: 's1' },
+    )
+    const parent = feature(
+      'b',
+      { type: 'gene', start: 1000, end: 1100 },
+      {
+        syntenyId: 's1',
+        spanIsReversed: '0',
+        nativeStart: '5000',
+        nativeEnd: '5100',
+      },
+      [bare],
+    )
+
+    const out = await collect(adapterOver([parent, TREE[1]!]))
+
+    expect(out[0]!.get('subfeatures')![0]!.get('start')).toBe(1020)
+  })
+
+  it('passes a childless feature through unwrapped', async () => {
+    const out = await collect(
+      adapterOver([
+        feature('x', { type: 'syntenic_region', start: 1, end: 9 }, {}),
+      ]),
+    )
+
+    expect(out[0]!.get('subfeatures')).toBeUndefined()
   })
 })

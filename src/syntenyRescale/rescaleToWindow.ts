@@ -68,16 +68,16 @@ function boxOf(genes: SyntenyGene[]): Box | undefined {
     : undefined
 }
 
-function place(gene: SyntenyGene, box: Box): Placement {
+function place(at: Placeable, box: Box): Placement {
   const frac = (coord: number) => (coord - box.synMin) / box.synSpan
-  const [a, b] = gene.spanIsReversed
+  const [a, b] = at.spanIsReversed
     ? [
-        box.refMax - frac(gene.nativeEnd) * box.refSpan,
-        box.refMax - frac(gene.nativeStart) * box.refSpan,
+        box.refMax - frac(at.nativeEnd) * box.refSpan,
+        box.refMax - frac(at.nativeStart) * box.refSpan,
       ]
     : [
-        box.refMin + frac(gene.nativeStart) * box.refSpan,
-        box.refMin + frac(gene.nativeEnd) * box.refSpan,
+        box.refMin + frac(at.nativeStart) * box.refSpan,
+        box.refMin + frac(at.nativeEnd) * box.refSpan,
       ]
   return { start: Math.round(a), end: Math.round(b) }
 }
@@ -94,6 +94,46 @@ function place(gene: SyntenyGene, box: Box): Placement {
 export function rescaleToWindow(
   genes: SyntenyGene[],
 ): ReadonlyMap<string, Placement> {
+  const placers = spanPlacers(genes)
+  const out = new Map<string, Placement>()
+  for (const gene of genes) {
+    out.set(
+      gene.id,
+      placers.get(gene.syntenyId)?.(gene) ?? {
+        start: gene.start,
+        end: gene.end,
+      },
+    )
+  }
+  return out
+}
+
+/**
+ * Anything positioned inside a span: a gene, or one of its exons, CDS or UTRs.
+ * A subfeature carries no span of its own and is placed by its gene's.
+ */
+export interface Placeable {
+  nativeStart: number
+  nativeEnd: number
+  spanIsReversed: boolean
+}
+
+/**
+ * One transform per span, so a gene's parts move with it.
+ *
+ * Subfeatures must go through the SAME box as their gene, not a box of their
+ * own. JBrowse 1 derived a second box for its subfeature query, taken over exon
+ * extents rather than gene extents, which lets an exon land fractionally
+ * outside the gene it belongs to — harmless at its scale, and not worth
+ * reproducing when the alternative is a guarantee that parts stay inside their
+ * whole.
+ *
+ * Returns no entry for a span that cannot be interpolated (one gene, or every
+ * gene at one coordinate); callers fall back to stored positions.
+ */
+export function spanPlacers(
+  genes: readonly SyntenyGene[],
+): ReadonlyMap<string, (at: Placeable) => Placement> {
   const bySpan = new Map<string, SyntenyGene[]>()
   for (const gene of genes) {
     let bucket = bySpan.get(gene.syntenyId)
@@ -104,14 +144,11 @@ export function rescaleToWindow(
     bucket.push(gene)
   }
 
-  const out = new Map<string, Placement>()
-  for (const bucket of bySpan.values()) {
+  const out = new Map<string, (at: Placeable) => Placement>()
+  for (const [syntenyId, bucket] of bySpan) {
     const box = boxOf(bucket)
-    for (const gene of bucket) {
-      out.set(
-        gene.id,
-        box ? place(gene, box) : { start: gene.start, end: gene.end },
-      )
+    if (box) {
+      out.set(syntenyId, at => place(at, box))
     }
   }
   return out

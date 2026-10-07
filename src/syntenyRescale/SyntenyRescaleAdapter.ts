@@ -1,10 +1,10 @@
 import { BaseFeatureDataAdapter } from '@jbrowse/core/data_adapters/BaseAdapter'
 import { ObservableCreate } from '@jbrowse/core/util/rxjs'
 
-import { rescaleToWindow } from './rescaleToWindow'
+import { rescaleToWindow, spanPlacers } from './rescaleToWindow'
 import { encodeSyntenyFeatureId } from './syntenyFeatureId'
 
-import type { SyntenyGene } from './rescaleToWindow'
+import type { Placeable, Placement, SyntenyGene } from './rescaleToWindow'
 import type { BaseOptions } from '@jbrowse/core/data_adapters/BaseAdapter'
 import type { Feature } from '@jbrowse/core/util/simpleFeature'
 import type { Region } from '@jbrowse/core/util/types'
@@ -20,6 +20,12 @@ class PlacedFeature implements Feature {
     private placedStart: number,
     private placedEnd: number,
     private placedId: string,
+    /**
+     * Already-placed children. A gene that moves while its exons stay put draws
+     * a glyph from two coordinate systems at once, so the tree is rebuilt whole
+     * or not at all.
+     */
+    private placedChildren?: Feature[],
   ) {}
 
   // the overload set is Feature's, restated so callers keep the narrow return
@@ -43,7 +49,9 @@ class PlacedFeature implements Feature {
             // running" without a debugger: the details panel shows it
             name === 'rescaledFrom'
             ? `${this.inner.get('start')}-${this.inner.get('end')}`
-            : this.inner.get(name)
+            : name === 'subfeatures'
+              ? (this.placedChildren ?? this.inner.get('subfeatures'))
+              : this.inner.get(name)
   }
 
   id() {
@@ -55,7 +63,7 @@ class PlacedFeature implements Feature {
   }
 
   children() {
-    return this.inner.children?.()
+    return this.placedChildren ?? this.inner.children?.()
   }
 
   toJSON() {
@@ -65,6 +73,9 @@ class PlacedFeature implements Feature {
       end: this.placedEnd,
       uniqueId: this.placedId,
       rescaledFrom: `${this.inner.get('start')}-${this.inner.get('end')}`,
+      ...(this.placedChildren
+        ? { subfeatures: this.placedChildren.map(c => c.toJSON()) }
+        : {}),
     }
   }
 }
@@ -146,6 +157,44 @@ export default class SyntenyRescaleAdapter extends BaseFeatureDataAdapter {
   }
 
   /**
+   * A gene's parts, moved by the gene's own transform, recursively — a
+   * transcript and the CDS and UTRs under it.
+   *
+   * Undefined when the feature has no children, so an unchanged feature is
+   * passed through rather than wrapped. A child with no native coordinates of
+   * its own keeps its stored position: wrong, but visibly wrong next to a
+   * parent that moved, which is better than inventing a coordinate for it.
+   */
+  private placeChildren(
+    feature: Feature,
+    placer: ((at: Placeable) => Placement) | undefined,
+  ): Feature[] | undefined {
+    const children = feature.get('subfeatures')
+    if (!children?.length || !placer) {
+      return undefined
+    }
+    const reversed = String(this.read(feature, 'reversedAttribute')) === '1'
+    return children.map(child => {
+      const nativeStart = Number(this.read(child, 'nativeStartAttribute'))
+      const nativeEnd = Number(this.read(child, 'nativeEndAttribute'))
+      const at =
+        Number.isFinite(nativeStart) && Number.isFinite(nativeEnd)
+          ? placer({ nativeStart, nativeEnd, spanIsReversed: reversed })
+          : undefined
+      const grandchildren = this.placeChildren(child, placer)
+      return at === undefined && grandchildren === undefined
+        ? child
+        : new PlacedFeature(
+            child,
+            at?.start ?? child.get('start'),
+            at?.end ?? child.get('end'),
+            child.id(),
+            grandchildren,
+          )
+    })
+  }
+
+  /**
    * Collects the whole window before emitting any of it. The rescale is a
    * property of the set — a gene's position depends on the other genes in its
    * span — so there is nothing to stream.
@@ -163,6 +212,7 @@ export default class SyntenyRescaleAdapter extends BaseFeatureDataAdapter {
         }
       }
       const placed = rescaleToWindow(genes)
+      const placers = spanPlacers(genes)
 
       for (const feature of features) {
         const at = placed.get(feature.id())
@@ -171,7 +221,12 @@ export default class SyntenyRescaleAdapter extends BaseFeatureDataAdapter {
           feature.id(),
           group ? String(group) : undefined,
         )
-        const changed = at !== undefined || id !== feature.id()
+        const gene = this.geneOf(feature)
+        const children = gene
+          ? this.placeChildren(feature, placers.get(gene.syntenyId))
+          : undefined
+        const changed =
+          at !== undefined || id !== feature.id() || children !== undefined
         observer.next(
           changed
             ? new PlacedFeature(
@@ -179,6 +234,7 @@ export default class SyntenyRescaleAdapter extends BaseFeatureDataAdapter {
                 at?.start ?? feature.get('start'),
                 at?.end ?? feature.get('end'),
                 id,
+                children,
               )
             : feature,
         )
