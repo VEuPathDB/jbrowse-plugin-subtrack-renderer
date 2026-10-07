@@ -1,0 +1,7 @@
+# pnpm 11 no longer reads the "pnpm" field in package.json; build-script
+# approvals live here. canvas and cypress need their install scripts.
+allowBuilds:
+  canvas: true
+  core-js: true
+  cypress: true
+  esbuild: true

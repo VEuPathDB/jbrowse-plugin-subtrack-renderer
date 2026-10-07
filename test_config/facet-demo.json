@@ -1,0 +1,58 @@
+{
+  "assemblies": [
+    {
+      "name": "volvox",
+      "sequence": {
+        "type": "ReferenceSequenceTrack",
+        "trackId": "volvox_refseq",
+        "adapter": {
+          "type": "TwoBitAdapter",
+          "uri": "http://localhost:3000/test_data/volvox/volvox.2bit"
+        }
+      }
+    }
+  ],
+  "tracks": [
+    {
+      "type": "FeatureTrack",
+      "trackId": "facet_demo",
+      "name": "Subtracks via facet + domain (no plugin)",
+      "assemblyNames": ["volvox"],
+      "adapter": {
+        "type": "Gff3TabixAdapter",
+        "uri": "http://localhost:3000/test_data/volvox/volvox.sort.gff3.gz"
+      },
+      "displays": [
+        {
+          "type": "LinearBasicDisplay",
+          "displayId": "facet_demo-LinearBasicDisplay",
+          "facet": {
+            "field": "jexl:get(feature,'type')=='gene' ? 'Genes' : get(feature,'type')=='mRNA' ? 'mRNAs' : get(feature,'type')=='contig' ? 'Contigs' : ''",
+            "domain": ["Contigs", "mRNAs", "Genes"]
+          }
+        }
+      ]
+    }
+  ],
+  "defaultSession": {
+    "name": "facet demo",
+    "views": [
+      {
+        "id": "lgv",
+        "type": "LinearGenomeView",
+        "tracks": [
+          {
+            "type": "FeatureTrack",
+            "configuration": "facet_demo",
+            "displays": [
+              {
+                "type": "LinearBasicDisplay",
+                "configuration": "facet_demo-LinearBasicDisplay"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

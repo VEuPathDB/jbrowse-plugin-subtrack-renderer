@@ -1,0 +1,104 @@
+{
+  "assemblies": [
+    {
+      "name": "volvox",
+      "sequence": {
+        "type": "ReferenceSequenceTrack",
+        "trackId": "volvox_refseq",
+        "adapter": {
+          "type": "TwoBitAdapter",
+          "uri": "http://localhost:3000/test_data/volvox/volvox.2bit"
+        }
+      }
+    }
+  ],
+  "tracks": [
+    {
+      "type": "FeatureTrack",
+      "trackId": "subtrack_demo",
+      "name": "Subtrack demo (opens on Genes only)",
+      "assemblyNames": [
+        "volvox"
+      ],
+      "metadata": {
+        "subtracks": [
+          {
+            "label": "gene",
+            "displayName": "Genes",
+            "metadata": {
+              "organism": "Volvox carteri",
+              "study": "Reference",
+              "kind": "Annotation"
+            },
+            "visible": true
+          },
+          {
+            "label": "mRNA",
+            "displayName": "mRNAs",
+            "metadata": {
+              "organism": "Volvox carteri",
+              "study": "Reference",
+              "kind": "Transcript"
+            },
+            "visible": false
+          },
+          {
+            "label": "contig",
+            "displayName": "Contigs",
+            "metadata": {
+              "organism": "Volvox carteri",
+              "study": "Assembly",
+              "kind": "Structural"
+            },
+            "visible": false
+          }
+        ]
+      },
+      "adapter": {
+        "type": "Gff3TabixAdapter",
+        "uri": "http://localhost:3000/test_data/volvox/volvox.sort.gff3.gz"
+      },
+      "displays": [
+        {
+          "type": "LinearBasicDisplay",
+          "displayId": "subtrack_demo-LinearBasicDisplay",
+          "facet": {
+            "field": "jexl:get(feature,'type')=='gene' ? 'gene' : get(feature,'type')=='mRNA' ? 'mRNA' : get(feature,'type')=='contig' ? 'contig' : ''",
+            "domain": [
+              "contig",
+              "mRNA",
+              "gene"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "plugins": [
+    {
+      "name": "SubtrackRenderer",
+      "url": "http://localhost:9002/dist/jbrowse-plugin-subtrack-renderer.umd.development.js"
+    }
+  ],
+  "defaultSession": {
+    "name": "Subtrack demo",
+    "views": [
+      {
+        "id": "lgv",
+        "type": "LinearGenomeView",
+        "tracks": [
+          {
+            "type": "FeatureTrack",
+            "configuration": "subtrack_demo",
+            "displays": [
+              {
+                "type": "LinearBasicDisplay",
+                "configuration": "subtrack_demo-LinearBasicDisplay"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
