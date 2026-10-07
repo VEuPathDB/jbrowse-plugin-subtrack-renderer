@@ -4,6 +4,8 @@ import { getContainingTrack, getContainingView } from '@jbrowse/core/util'
 import { observer } from 'mobx-react'
 import React, { createElement, lazy, Suspense } from 'react'
 
+import { ribbonRefName } from './ribbonGeometry'
+
 import '../displayExtension/registry'
 
 import type PluginManager from '@jbrowse/core/PluginManager'
@@ -13,6 +15,18 @@ import type { MenuItem } from '@jbrowse/core/ui'
 import type { IAnyModelType, IAnyStateTreeNode } from '@jbrowse/mobx-state-tree'
 
 const SyntenyRibbonLayer = lazy(() => import('./SyntenyRibbonLayer'))
+
+/** Whether the containing view's horizontal axis is a single sequence. */
+function oneSequence(self: unknown): boolean {
+  try {
+    const view = getContainingView(self as IAnyStateTreeNode) as unknown as {
+      dynamicBlocks?: { contentBlocks?: { refName: string }[] }
+    }
+    return ribbonRefName(view.dynamicBlocks?.contentBlocks ?? []) !== undefined
+  } catch {
+    return false
+  }
+}
 
 const ADAPTER = 'SyntenyRescaleAdapter'
 
@@ -58,19 +72,26 @@ export default function installSyntenyRibbons(pluginManager: PluginManager) {
         return {
           trackMenuItems() {
             const base = superTrackMenuItems() as MenuItem[]
-            return isSyntenyTrack(self)
-              ? [
-                  ...base,
-                  {
-                    label: 'Shade orthologs',
-                    type: 'checkbox' as const,
-                    checked: self.showsSyntenyRibbons,
-                    onClick: () => {
-                      self.setShowsSyntenyRibbons(!self.showsSyntenyRibbons)
-                    },
-                  },
-                ]
-              : base
+            if (!isSyntenyTrack(self)) {
+              return base
+            }
+            // The layer declines to draw across several sequences. Saying so
+            // here rather than leaving a ticked box that paints nothing.
+            const single = oneSequence(self)
+            return [
+              ...base,
+              {
+                label: single
+                  ? 'Shade orthologs'
+                  : 'Shade orthologs (one sequence at a time)',
+                type: 'checkbox' as const,
+                checked: self.showsSyntenyRibbons && single,
+                disabled: !single,
+                onClick: () => {
+                  self.setShowsSyntenyRibbons(!self.showsSyntenyRibbons)
+                },
+              },
+            ]
           },
         }
       }),

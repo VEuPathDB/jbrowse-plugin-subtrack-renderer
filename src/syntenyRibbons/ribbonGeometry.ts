@@ -10,6 +10,27 @@
  * is kept, because drawing every pair is both wrong-looking and quadratic.
  */
 
+/**
+ * The sequence the ribbons are drawn against, or undefined when they should not
+ * be drawn at all.
+ *
+ * Shading joins boxes by their bp span, which only means anything while the
+ * horizontal axis is one sequence. A view showing several — the whole-genome
+ * view, or regions added by hand — concatenates them into one strip, where a
+ * coordinate alone no longer locates a feature. Drawing anyway gives ribbons
+ * placed by whichever sequence happened to be first, which looks like a grey
+ * blur and is wrong rather than merely dense.
+ *
+ * A single sequence may still arrive as several blocks, so this counts distinct
+ * names rather than blocks.
+ */
+export function ribbonRefName(
+  contentBlocks: readonly { refName: string }[],
+): string | undefined {
+  const names = new Set(contentBlocks.map(b => b.refName))
+  return names.size === 1 ? [...names][0] : undefined
+}
+
 /** One laid-out feature, as the display's `featureItemMap` reports it. */
 export interface RibbonBox {
   /** the lane (facet section) this box sits in */

@@ -4,7 +4,7 @@ import OverlayCanvas from '@jbrowse/render-core/OverlayCanvas'
 import { observer } from 'mobx-react'
 
 import { orthologGroupOf } from '../syntenyRescale/syntenyFeatureId'
-import { buildRibbons, ribbonPolygon } from './ribbonGeometry'
+import { buildRibbons, ribbonPolygon, ribbonRefName } from './ribbonGeometry'
 
 import type { RibbonBox, RibbonPolygon } from './ribbonGeometry'
 
@@ -65,7 +65,9 @@ const SyntenyRibbonLayer = observer(function SyntenyRibbonLayer({
   // makes `observer` re-render on exactly these values, which changes `draw`'s
   // identity, which is what re-runs it.
   const polygons: RibbonPolygon[] = []
-  const refName = view.dynamicBlocks.contentBlocks[0]?.refName
+  // undefined across several sequences, which is where shading stops meaning
+  // anything -- see ribbonRefName
+  const refName = ribbonRefName(view.dynamicBlocks.contentBlocks)
   // `offsetPx` and `bpPerPx` are the pan and the zoom: both are read through
   // bpToPx below, and reading them by name as well keeps the dependency even if
   // every feature happens to fall outside the view.

@@ -1,4 +1,4 @@
-import { buildRibbons, ribbonPolygon } from './ribbonGeometry'
+import { buildRibbons, ribbonPolygon, ribbonRefName } from './ribbonGeometry'
 
 import type { RibbonBox } from './ribbonGeometry'
 
@@ -148,5 +148,29 @@ describe('ribbonPolygon', () => {
   it('drops a ribbon whose coordinates do not map', () => {
     // bpToPx answers only inside a displayed region
     expect(ribbonPolygon(ribbon, () => Number.NaN, 0, 1000)).toBeUndefined()
+  })
+})
+
+describe('ribbonRefName', () => {
+  it('names the sequence when the view shows one', () => {
+    expect(ribbonRefName([{ refName: 'chr1' }])).toBe('chr1')
+  })
+
+  it('still names it when one sequence arrives as several blocks', () => {
+    expect(ribbonRefName([{ refName: 'chr1' }, { refName: 'chr1' }])).toBe(
+      'chr1',
+    )
+  })
+
+  it('declines across several sequences', () => {
+    // the whole-genome view: coordinates no longer locate a feature, so
+    // ribbons would be placed by whichever sequence came first
+    expect(
+      ribbonRefName([{ refName: 'chr1' }, { refName: 'chr2' }]),
+    ).toBeUndefined()
+  })
+
+  it('declines when the view shows nothing', () => {
+    expect(ribbonRefName([])).toBeUndefined()
   })
 })
