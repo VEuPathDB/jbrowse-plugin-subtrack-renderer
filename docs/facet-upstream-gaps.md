@@ -109,3 +109,47 @@ The alternative is the display's `jexlFilters`, which cuts the fetch itself —
 trading a cheap toggle for a refetch whenever a lane is added. **Not measured.**
 Measure before choosing; the current behaviour was picked for toggle latency and
 that reasoning still holds unless the numbers say otherwise.
+
+## Open: a display cannot add an overlay layer
+
+The ortholog shading draws over the display's canvas, and there is no supported
+way for a plugin to put it there.
+
+`extendDisplayType` reaches the state model and nothing else — it resolves to
+`display.extendStateModel(...)`. The display's layers (`GroupLabelsLayer`,
+`FloatingLabelsLayer`, `OverlayScrollLayer`) are composed inside
+`FeatureComponent.tsx`, which a plugin does not own.
+
+What this plugin does instead: `extendDisplayType` is a thin wrapper over
+`pluginManager.addToExtensionPoint('Core-extendPluggableElement', ...)`, that
+callback is handed the element and takes back what it returns, and
+`DisplayType.ReactComponent` is a plain mutable field. So the component is
+wrapped there, rendering the display followed by the overlay.
+
+**This is unsanctioned and should be treated as a liability, not a pattern.**
+`ReactComponent` is writable today by omission rather than by promise. A JBrowse
+that makes it readonly, or that restructures how `FeatureComponent` composes its
+layers, breaks this — and the plugin's own tests will not notice, because they
+exercise the geometry rather than the attachment.
+
+The blast radius is one plugin and the fix would be a plugin change, which is
+why it was taken on rather than asking upstream first. The ask, if it is ever
+made, is small and has an obvious shape: upstream already renders a stack of
+overlay layers and already publishes the two primitives a plugin would need for
+one (`@jbrowse/render-core/OverlayCanvas` and `ScrollLockedOverlay` are both on
+core's ReExports list). What is missing is only an extension point naming the
+layer stack.
+
+### The related trap, recorded because it cost a browser round trip
+
+A canvas overlay's `draw` closure runs from an effect, which is **outside mobx's
+tracking**. Reading the view inside it observes nothing: the component never
+re-renders, the closure keeps its identity, and `OverlayCanvas` never re-runs
+it. The overlay paints correctly once and then holds still while the track moves
+under it, which reads as a missing feature rather than a bug.
+
+Read every reactive value in the render body and let `draw` paint what is
+already computed. `OverlayCanvas`'s own docstring says as much — "wrap the
+caller in `observer` ... `draw`'s identity then changes exactly when those
+inputs do" — and `observer` alone does nothing if the inputs are not read where
+it can see them.
