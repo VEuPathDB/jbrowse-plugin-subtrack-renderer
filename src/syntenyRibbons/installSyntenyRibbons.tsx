@@ -61,7 +61,10 @@ function isSyntenyTrack(self: unknown): boolean {
 export default function installSyntenyRibbons(pluginManager: PluginManager) {
   extendDisplayType(pluginManager, 'LinearBasicDisplay', stateModel =>
     (stateModel as IAnyModelType)
-      .props({ showsSyntenyRibbons: false })
+      // On by default: shading is the point of a synteny track, and a reader
+      // who wants it off has the menu. Harmless on other tracks -- the wrapper
+      // below mounts the layer only for a synteny one.
+      .props({ showsSyntenyRibbons: true })
       .actions(self => ({
         setShowsSyntenyRibbons(show: boolean) {
           self.showsSyntenyRibbons = show
@@ -119,7 +122,7 @@ export default function installSyntenyRibbons(pluginManager: PluginManager) {
         return (
           <>
             {createElement(Inner, props)}
-            {model.showsSyntenyRibbons ? (
+            {model.showsSyntenyRibbons && isSyntenyTrack(props.model) ? (
               <Suspense fallback={null}>
                 <SyntenyRibbonLayer
                   model={model as never}
