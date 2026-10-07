@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react'
+import React from 'react'
 
 import OverlayCanvas from '@jbrowse/render-core/OverlayCanvas'
 import { observer } from 'mobx-react'
@@ -6,7 +6,7 @@ import { observer } from 'mobx-react'
 import { orthologGroupOf } from '../syntenyRescale/syntenyFeatureId'
 import { buildRibbons, ribbonPolygon } from './ribbonGeometry'
 
-import type { RibbonBox } from './ribbonGeometry'
+import type { RibbonBox, RibbonPolygon } from './ribbonGeometry'
 
 /** What this layer needs off the display; everything else about it is private. */
 export interface RibbonLayerModel {
@@ -50,6 +50,7 @@ const SyntenyRibbonLayer = observer(function SyntenyRibbonLayer({
       coord: number
     }) => { offsetPx: number } | undefined
     offsetPx: number
+    bpPerPx: number
     width: number
     dynamicBlocks: { contentBlocks: { refName: string }[] }
   }
@@ -57,58 +58,70 @@ const SyntenyRibbonLayer = observer(function SyntenyRibbonLayer({
   const { scrollTop, height } = model
   const width = view.width
 
-  const draw = useCallback(
-    (ctx: CanvasRenderingContext2D) => {
-      ctx.clearRect(0, 0, width, height)
-      if (!model.showsSyntenyRibbons) {
-        return
-      }
-      const refName = view.dynamicBlocks.contentBlocks[0]?.refName
-      if (!refName) {
-        return
-      }
-      const bpToPx = (bp: number) => {
-        const at = view.bpToPx({ refName, coord: bp })
-        return at === undefined ? Number.NaN : at.offsetPx - view.offsetPx
-      }
+  // Everything reactive is read HERE, in the render body, not inside `draw`.
+  // `draw` runs from an effect, which is outside mobx's tracking, so a closure
+  // that reads the view there observes nothing and the overlay goes stale on
+  // pan and zoom while looking correct on first paint. Reading during render
+  // makes `observer` re-render on exactly these values, which changes `draw`'s
+  // identity, which is what re-runs it.
+  const polygons: RibbonPolygon[] = []
+  const refName = view.dynamicBlocks.contentBlocks[0]?.refName
+  // `offsetPx` and `bpPerPx` are the pan and the zoom: both are read through
+  // bpToPx below, and reading them by name as well keeps the dependency even if
+  // every feature happens to fall outside the view.
+  const { offsetPx, bpPerPx } = view
+  void bpPerPx
+  if (model.showsSyntenyRibbons && refName) {
+    const bpToPx = (bp: number) => {
+      const at = view.bpToPx({ refName, coord: bp })
+      return at === undefined ? Number.NaN : at.offsetPx - offsetPx
+    }
 
-      const boxes: RibbonBox[] = []
-      for (const { item } of model.featureItemMap.values()) {
-        const orthologGroup = orthologGroupOf(item.featureId)
-        if (orthologGroup && item.groupKey !== undefined) {
-          boxes.push({
-            group: item.groupKey,
-            orthologGroup,
-            startBp: item.startBp,
-            endBp: item.endBp,
-            topPx: item.topPx,
-            bottomPx: item.bottomPx,
-          })
-        }
+    const boxes: RibbonBox[] = []
+    for (const { item } of model.featureItemMap.values()) {
+      const orthologGroup = orthologGroupOf(item.featureId)
+      if (orthologGroup && item.groupKey !== undefined) {
+        boxes.push({
+          group: item.groupKey,
+          orthologGroup,
+          startBp: item.startBp,
+          endBp: item.endBp,
+          topPx: item.topPx,
+          bottomPx: item.bottomPx,
+        })
       }
+    }
 
-      const lanes = model.groupSections.map(s => s.key)
-      ctx.fillStyle = FILL
-      ctx.strokeStyle = STROKE
-      ctx.lineWidth = 0.5
-      for (const ribbon of buildRibbons(boxes, lanes)) {
-        const poly = ribbonPolygon(ribbon, bpToPx, scrollTop, width)
-        if (!poly) {
-          continue
-        }
-        ctx.beginPath()
-        const [first, ...rest] = poly.points
-        ctx.moveTo(first![0], first![1])
-        for (const [x, y] of rest) {
-          ctx.lineTo(x, y)
-        }
-        ctx.closePath()
-        ctx.fill()
-        ctx.stroke()
+    const lanes = model.groupSections.map(s => s.key)
+    for (const ribbon of buildRibbons(boxes, lanes)) {
+      const poly = ribbonPolygon(ribbon, bpToPx, scrollTop, width)
+      if (poly) {
+        polygons.push(poly)
       }
-    },
-    [model, view, width, height, scrollTop],
-  )
+    }
+  }
+
+  // Deliberately not memoized: `polygons` is a fresh array per render, so the
+  // closure's identity already changes exactly when the geometry does, and
+  // OverlayCanvas re-runs it on that. A render only happens when something
+  // tracked above moved, so this is not a redraw per frame.
+  const draw = (ctx: CanvasRenderingContext2D) => {
+    ctx.clearRect(0, 0, width, height)
+    ctx.fillStyle = FILL
+    ctx.strokeStyle = STROKE
+    ctx.lineWidth = 0.5
+    for (const poly of polygons) {
+      ctx.beginPath()
+      const [first, ...rest] = poly.points
+      ctx.moveTo(first![0], first![1])
+      for (const [x, y] of rest) {
+        ctx.lineTo(x, y)
+      }
+      ctx.closePath()
+      ctx.fill()
+      ctx.stroke()
+    }
+  }
 
   return (
     <OverlayCanvas
