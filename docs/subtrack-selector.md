@@ -13,7 +13,7 @@
 > | `SubtrackFeatureDisplay`, "the renderer", `renderProps()`, blocks | stock `LinearBasicDisplay`; block rendering no longer exists |
 > | `SubtrackAdapter`, `lanes`, `src/SubtrackAdapter/laneKey.ts` | deleted; the catalog is `track.metadata.subtracks`, typed in `src/subtrackCatalog.ts` |
 > | `featureFilters` as a facet source | gone — a lane is a value the data carries, and `metadata` is the sole facet source |
-> | `hiddenGroupKeys`, `groupBy` | the `displayHiddenGroupKeys` hook, and `facet: {field, domain}` |
+> | `hiddenGroupKeys`, `groupBy` | the extension's `hiddenGroupKeys` override (see `facet-upstream-gaps.md`), and `facet: {field, sort}` |
 > | `subtrackConfig.enabled` gating the menu item | a catalog *and* a facet field being present (`hasSubtracks`) |
 >
 > Three things it describes are unchanged and load-bearing: `subtrackSelection`

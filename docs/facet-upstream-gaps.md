@@ -1,6 +1,7 @@
 # facet: upstream gaps
 
-**Status:** two of three closed upstream; one open and deferred
+**Status:** two of three closed upstream; one open and deferred. Two
+unsanctioned extension points, both broken between 5.0.0-beta.10 and beta.18.
 **Audience:** whoever next touches lane rendering in this plugin
 
 Renamed from `groupby-upstream-gaps.md`. JBrowse renamed the feature from
@@ -27,18 +28,23 @@ rediscovers the two that are already fixed and tries to fix them again.
 
 ## Closed upstream
 
-### Lane order — closed by `facet.domain`
+### Lane order — closed by `facet.sort`
 
 Sections were sorted code-point by group key, so declared lane order was
-ignored. `facet.domain` is now exactly the declared order: the values it lists
+ignored. `facet.sort` is now exactly the declared order: the values it lists
 stack first, in that order, and the rest follow sorted
 (`groupKeyComparator`, `packages/core/src/util/groupKeys.ts`).
 
-Note what `domain` deliberately is *not*: it is no part of `groupKeySpaceOf`,
+Earlier betas spelled the slot `domain`; beta.18 stopped accepting that
+spelling (upstream `34d312d`), so a config still writing
+`domain` loads with a `SectionFacet does not declare domain` warning and stacks
+its lanes sorted.
+
+Note what `sort` deliberately is *not*: it is no part of `groupKeySpaceOf`,
 which is the facet's `field` alone. So reordering lanes does not invalidate
 anything keyed by group key — in particular it does not reset what a reader hid
 from a section chip. This plugin depends on that, and
-`src/displayExtension/index.ts` writes `domain` on every selection change
+`src/displayExtension/index.ts` writes `sort` on every selection change
 because of it.
 
 ### Attribute discovery — closed by `field: 'featureField'`
@@ -63,12 +69,12 @@ go on the chip.
 `categoricalField` takes a `labels` array — "names the `domain`'s values in a
 key, one each in order" — and `sectionLabel` prefers it over the fallback. But
 `facetConfigSchema` (`packages/display-kit/src/facetConfigSchema.ts`) declares
-only `field` and `domain`, and the canvas display's `facetField()`
-(`plugins/canvas/src/LinearBasicDisplay/facet.ts`) passes only `{domain}`.
+only `field` and `sort`, and the canvas display's `facetField()`
+(`plugins/canvas/src/LinearBasicDisplay/facet.ts`) passes only `{domain: sort}`.
 
 So the upstream change is: add a `labels` stringArray slot to
-`facetConfigSchema` alongside `domain`, and thread it through `facetField()`.
-Exactly parallel to `domain`, against machinery that already supports it. It is
+`facetConfigSchema` alongside `sort`, and thread it through `facetField()`.
+Exactly parallel to `sort`, against machinery that already supports it. It is
 a `jbrowse-components` change, not a plugin change, and a small clean PR rather
 than a fork.
 
@@ -79,7 +85,7 @@ VEuPathDB's purposes. Revisit if the chips need to read editorially.
 
 Not an upstream gap — a design question this plugin has not answered.
 
-`displayHiddenGroupKeys` hides catalog lanes the reader's selection leaves out.
+The plugin hides catalog lanes the reader's selection leaves out.
 It says nothing about a group key that is *not* in the catalog, so a `subtrack`
 value present in the data but undeclared draws in a section of its own and the
 picker will not offer it. Features with no `subtrack` value at all land in
@@ -110,6 +116,27 @@ trading a cheap toggle for a refetch whenever a lane is added. **Not measured.**
 Measure before choosing; the current behaviour was picked for toggle latency and
 that reasoning still holds unless the numbers say otherwise.
 
+## Open: a display cannot hide a lane on its own behalf
+
+Through beta.17 `HiddenGroupsMixin` had a `displayHiddenGroupKeys` hook, and
+`hiddenGroupKeys` folded it with the reader's chip hides. That hook is how the
+plugin hid the catalog's default-off lanes. beta.18 removed it (upstream
+`29c9844`, "lost its one override and goes with it": ours was invisible to
+them), and hidden sections became config only, `facet.hidden`. Nothing errored:
+every one of a synteny track's 126 lanes simply showed.
+
+The plugin now overrides `hiddenGroupKeys` itself, folding its own set into
+`hiddenGroups` (`facet.hidden`). The canvas display reads `hiddenGroupKeys`, so
+the behaviour is beta.10's exactly, and `displayExtension.test.ts` pins the fold
+against the real mixin. **This is an override of a getter upstream no longer
+treats as an extension point** — the same liability as the overlay below.
+
+The sanctioned shape would be to write the selection into `facet.hidden`
+(catalog minus selection), the way upstream's own self-alignment lane went. That
+merges the reader's chip hides and the curated selection into one set, so
+"Show all" would show every catalog lane — a change to what a selection means,
+so it was not taken as part of a version bump.
+
 ## Open: a display cannot add an overlay layer
 
 The ortholog shading draws over the display's canvas, and there is no supported
@@ -131,6 +158,13 @@ wrapped there, rendering the display followed by the overlay.
 that makes it readonly, or that restructures how `FeatureComponent` composes its
 layers, breaks this — and the plugin's own tests will not notice, because they
 exercise the geometry rather than the attachment.
+
+It reads the display's laid-out boxes as well, which is the same exposure from
+the model side: beta.12 removed `featureItemMap` (upstream `805c509`) in favour
+of `featureIdIndex`, and the layer threw `Cannot read properties of undefined
+(reading 'values')` on every render — taking the track down with it, since the
+error lands in the display's own error boundary. Jest stayed green; only a
+browser showed it.
 
 The blast radius is one plugin and the fix would be a plugin change, which is
 why it was taken on rather than asking upstream first. The ask, if it is ever

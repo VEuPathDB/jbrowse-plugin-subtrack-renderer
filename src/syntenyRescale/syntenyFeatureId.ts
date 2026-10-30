@@ -5,7 +5,7 @@
  * thread gets back (`SectionStamp`), and the payload itself is typed arrays
  * rather than features — so an arbitrary attribute cannot be read where the
  * ribbons are drawn. `featureId` is the one string that survives the trip
- * intact and is the key of the display's `featureItemMap`, and an adapter is
+ * intact and is the key of the display's `featureIdIndex`, and an adapter is
  * free to choose it.
  *
  * Pure and JBrowse-free so both ends — the adapter that writes and the overlay
