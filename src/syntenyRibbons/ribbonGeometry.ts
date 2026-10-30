@@ -31,7 +31,7 @@ export function ribbonRefName(
   return names.size === 1 ? [...names][0] : undefined
 }
 
-/** One laid-out feature, as the display's `featureItemMap` reports it. */
+/** One laid-out feature, as the display's `featureIdIndex` reports it. */
 export interface RibbonBox {
   /** the lane (facet section) this box sits in */
   group: string

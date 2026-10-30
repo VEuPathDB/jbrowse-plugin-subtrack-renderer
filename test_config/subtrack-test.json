@@ -64,7 +64,7 @@
           "displayId": "subtrack_demo-LinearBasicDisplay",
           "facet": {
             "field": "jexl:get(feature,'type')=='gene' ? 'gene' : get(feature,'type')=='mRNA' ? 'mRNA' : get(feature,'type')=='contig' ? 'contig' : ''",
-            "domain": [
+            "sort": [
               "contig",
               "mRNA",
               "gene"

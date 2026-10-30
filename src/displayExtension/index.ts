@@ -67,9 +67,9 @@ export default function installDisplayExtension(pluginManager: PluginManager) {
          * "not chosen yet", which resolveSubtracks reads as "fall back to the
          * catalog defaults" — so undefined and [] are different answers.
          *
-         * A prop, not a volatile: HiddenGroupsMixin's own `hiddenGroups` is
-         * volatile and dies on reload, which is fine for a chip the reader
-         * flicked off and wrong for a curated lane selection.
+         * A prop, so it survives a reload, and kept apart from the reader's chip
+         * hides (`facet.hidden`), so "Show all" restores the selection rather
+         * than every catalog lane.
          */
         subtrackSelection: types.maybe(types.array(types.string)),
       })
@@ -94,8 +94,8 @@ export default function installDisplayExtension(pluginManager: PluginManager) {
          * degrades instead of hiding real lanes.
          *
          * Derived rather than stored, so there is no second copy of the truth;
-         * the reader's own chip-hiding composes on top through
-         * HiddenGroupsMixin's `hiddenGroupKeys`.
+         * the reader's own chip-hiding composes on top in `hiddenGroupKeys`
+         * below.
          */
         get displayHiddenGroupKeys(): ReadonlySet<string> {
           if (!self.hasSubtracks) {
@@ -118,25 +118,40 @@ export default function installDisplayExtension(pluginManager: PluginManager) {
           return hidden.length === 0 ? NONE : new Set(hidden)
         },
       }))
+      .views(self => ({
+        /**
+         * Overrides HiddenGroupsMixin's getter, which in beta.18 reads only
+         * `facet.hidden`: the hook this fold used to go through upstream was
+         * removed. Unsanctioned, see docs/facet-upstream-gaps.md.
+         */
+        get hiddenGroupKeys(): ReadonlySet<string> {
+          const own: ReadonlySet<string> = self.displayHiddenGroupKeys
+          const reader: ReadonlySet<string> = self.hiddenGroups
+          if (own.size === 0) {
+            return reader
+          }
+          return reader.size === 0 ? own : new Set([...reader, ...own])
+        },
+      }))
       .actions(self => ({
         /**
          * One reader action writes both halves: the order goes to the facet's
-         * `domain`, the membership to our own prop, which the hidden-keys getter
-         * derives from. `domain` is no part of `groupKeySpace`, so writing it
+         * `sort`, the membership to our own prop, which the hidden-keys getter
+         * derives from. `sort` is no part of `groupKeySpace`, so writing it
          * does not reset what the reader hid from a chip.
          */
         setSubtrackSelection(labels: string[]) {
           self.subtrackSelection = cast(labels)
           const field = facetFieldOf(self)
           if (field) {
-            self.setFacet({ field, domain: labels })
+            self.setFacet({ field, sort: labels })
           }
         },
         resetSubtrackSelection() {
           self.subtrackSelection = undefined
           const field = facetFieldOf(self)
           if (field) {
-            self.setFacet({ field, domain: [] })
+            self.setFacet({ field, sort: [] })
           }
         },
         openSubtrackSelector() {

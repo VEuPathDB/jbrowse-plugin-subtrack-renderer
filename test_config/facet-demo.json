@@ -16,7 +16,7 @@
     {
       "type": "FeatureTrack",
       "trackId": "facet_demo",
-      "name": "Subtracks via facet + domain (no plugin)",
+      "name": "Subtracks via facet + sort (no plugin)",
       "assemblyNames": ["volvox"],
       "adapter": {
         "type": "Gff3TabixAdapter",
@@ -28,7 +28,7 @@
           "displayId": "facet_demo-LinearBasicDisplay",
           "facet": {
             "field": "jexl:get(feature,'type')=='gene' ? 'Genes' : get(feature,'type')=='mRNA' ? 'mRNAs' : get(feature,'type')=='contig' ? 'Contigs' : ''",
-            "domain": ["Contigs", "mRNAs", "Genes"]
+            "sort": ["Contigs", "mRNAs", "Genes"]
           }
         }
       ]

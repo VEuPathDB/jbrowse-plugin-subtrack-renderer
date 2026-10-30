@@ -11,7 +11,7 @@ import type { RibbonBox, RibbonPolygon } from './ribbonGeometry'
 /** What this layer needs off the display; everything else about it is private. */
 export interface RibbonLayerModel {
   showsSyntenyRibbons: boolean
-  featureItemMap: Map<string, { item: RibbonItem }>
+  featureIdIndex: Map<string, RibbonItem>
   groupSections: { key: string }[]
   scrollTop: number
   height: number
@@ -32,9 +32,9 @@ const STROKE = 'rgba(128,128,128,0.55)'
 /**
  * Shading between orthologous genes in different lanes.
  *
- * The geometry is all on one model: `featureItemMap` holds every laid-out
- * feature with its box and its lane (`groupKey`), and `groupSections` gives the
- * lane order. JBrowse 1 had to walk a layout per subtrack and correlate them
+ * The geometry is all on one model: `featureIdIndex` holds every laid-out
+ * top-level feature with its box and its lane (`groupKey`), and `groupSections`
+ * gives the lane order. JBrowse 1 had to walk a layout per subtrack and correlate them
  * across per-block canvases, which is why its own notes record shading going
  * incomplete when a block scrolled in; there is no equivalent hazard here
  * because one pass sees every section at once.
@@ -80,7 +80,7 @@ const SyntenyRibbonLayer = observer(function SyntenyRibbonLayer({
     }
 
     const boxes: RibbonBox[] = []
-    for (const { item } of model.featureItemMap.values()) {
+    for (const item of model.featureIdIndex.values()) {
       const orthologGroup = orthologGroupOf(item.featureId)
       if (orthologGroup && item.groupKey !== undefined) {
         boxes.push({
