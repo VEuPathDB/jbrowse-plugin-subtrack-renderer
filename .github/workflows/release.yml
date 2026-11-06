@@ -1,0 +1,89 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to build and publish (e.g. v1.2.3)
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - name: Validate tag
+        run: |
+          case "$TAG" in
+            v?*) ;;
+            *) echo "::error::tag '$TAG' must start with 'v'"; exit 1 ;;
+          esac
+
+      - uses: actions/checkout@v7
+        with:
+          ref: refs/tags/${{ env.TAG }}
+
+      - name: Pick pnpm version
+        id: pnpm
+        run: |
+          if [ -n "$(jq -r '.packageManager // empty' package.json)" ]; then
+            echo "version=" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=11" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: ${{ steps.pnpm.outputs.version }}
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm test
+      - run: pnpm typecheck
+
+      - name: Stage assets
+        id: assets
+        run: |
+          version="${TAG#v}"
+          asset="jbrowse-plugin-subtrack-renderer-${version}.umd.production.min.js"
+          mkdir -p release
+          cp dist/jbrowse-plugin-subtrack-renderer.umd.production.min.js "release/$asset"
+          (cd release && sha256sum "$asset" > "$asset.sha256")
+          cat "release/$asset.sha256"
+          echo "asset=$asset" >> "$GITHUB_OUTPUT"
+          if [[ "$version" == *-* ]]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish to GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ASSET: ${{ steps.assets.outputs.asset }}
+          PRERELEASE: ${{ steps.assets.outputs.prerelease }}
+        run: |
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release edit "$TAG" --prerelease="$PRERELEASE"
+          else
+            flags=()
+            [ "$PRERELEASE" = true ] && flags+=(--prerelease)
+            gh release create "$TAG" --verify-tag --title "$TAG" --generate-notes "${flags[@]}"
+          fi
+          gh release upload "$TAG" "release/$ASSET" "release/$ASSET.sha256" --clobber

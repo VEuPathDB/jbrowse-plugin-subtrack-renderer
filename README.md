@@ -287,3 +287,37 @@ jbrowse-web.
 `jbrowse-components` main.** Main runs well ahead of the last release, and this
 plugin compiles against what npm publishes. More than one afternoon has gone to
 a signature that existed only on main.
+
+## Releasing
+
+Push a `v*` tag. `.github/workflows/release.yml` checks the tag out, runs
+`pnpm install --frozen-lockfile`, `build`, `test` and `typecheck`, and attaches
+two assets to the tag's GitHub release, creating the release if it is missing:
+
+- `jbrowse-plugin-subtrack-renderer-<version>.umd.production.min.js`, the
+  production UMD bundle from `dist/`
+- `jbrowse-plugin-subtrack-renderer-<version>.umd.production.min.js.sha256`, in
+  `sha256sum` format
+
+`<version>` is the tag without its leading `v`, never `package.json`'s
+`version`. A version containing `-` (`1.0.0-beta.18`) is published as a
+pre-release.
+
+```bash
+git tag v1.2.3 && git push origin v1.2.3
+```
+
+To publish an existing tag, run the workflow by hand: **Actions → release →
+Run workflow**, with `tag` set to the tag. It builds the tagged commit with the
+workflow on `main`. Re-running replaces the assets.
+
+```bash
+gh workflow run release.yml -f tag=v1.0.0-beta.18
+```
+
+Consumers pin a tag and verify the checksum:
+
+```
+https://github.com/VEuPathDB/jbrowse-plugin-subtrack-renderer/releases/download/v<version>/jbrowse-plugin-subtrack-renderer-<version>.umd.production.min.js
+https://github.com/VEuPathDB/jbrowse-plugin-subtrack-renderer/releases/download/v<version>/jbrowse-plugin-subtrack-renderer-<version>.umd.production.min.js.sha256
+```
