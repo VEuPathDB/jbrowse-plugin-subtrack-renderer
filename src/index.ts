@@ -1,6 +1,7 @@
 import Plugin from '@jbrowse/core/Plugin'
 
 import installDisplayExtension from './displayExtension'
+import installWiggleExtension from './displayExtension/wiggle'
 import installSyntenyRescaleAdapter from './syntenyRescale'
 import installSyntenyRefetch from './syntenyRescale/installSyntenyRefetch'
 import installSyntenyRibbons from './syntenyRibbons/installSyntenyRibbons'
@@ -14,6 +15,7 @@ export default class SubtrackRendererPlugin extends Plugin {
   // registry is frozen once createPluggableElements() has run.
   install(pluginManager: PluginManager) {
     installDisplayExtension(pluginManager)
+    installWiggleExtension(pluginManager)
     installSyntenyRescaleAdapter(pluginManager)
     installSyntenyRefetch(pluginManager)
     installSyntenyRibbons(pluginManager)

@@ -122,6 +122,54 @@ reader hid from a section chip, which JBrowse keeps in `facet.hidden`.
 See [`docs/subtrack-selector.md`](docs/subtrack-selector.md) for the picker's
 design.
 
+## Multi-wiggle tracks
+
+A `MultiQuantitativeTrack` whose adapter is a `MultiWiggleAdapter` (one
+`BigWigAdapter` per sample) gets the same **Select subtracks...** entry. The
+picker lists the subadapters by name: `source`, else `name`, else the file name
+without its extension, as the adapter itself names them. There are no facets;
+per-sample metadata is not read.
+
+Hidden subtracks are not fetched. The display's adapter config is narrowed to
+the selected subadapters, in the selected order, so the worker never opens the
+others' index or data. Without the plugin the display fetches every subtrack and
+filters only what it draws.
+
+In 5.0.0-beta.18 a `MultiLinearWiggleDisplay` config entry is folded into
+`LinearWiggleDisplay` with its sources on rows; the plugin extends that display,
+so either spelling works.
+
+**Default subset.** List the subtracks a track opens with under the track's
+`metadata.defaultSubtracks`. The rest stay available in the picker. Without it,
+or when it names no subtrack the adapter has, every subtrack shows.
+
+```json
+{
+  "type": "MultiQuantitativeTrack",
+  "trackId": "pfal3D7_dnaseq_coverage",
+  "name": "DNA-seq coverage (387 isolates)",
+  "assemblyNames": ["pfal3D7"],
+  "metadata": {
+    "defaultSubtracks": ["PF3D7_ref", "GB4", "HB3", "IT", "7G8"]
+  },
+  "adapter": {
+    "type": "MultiWiggleAdapter",
+    "subadapters": [
+      { "type": "BigWigAdapter", "name": "PF3D7_ref", "bigWigLocation": { "uri": "coverage/PF3D7_ref.bw" } },
+      { "type": "BigWigAdapter", "name": "GB4", "bigWigLocation": { "uri": "coverage/GB4.bw" } },
+      { "type": "BigWigAdapter", "name": "Dd2", "bigWigLocation": { "uri": "coverage/Dd2.bw" } }
+    ]
+  },
+  "displays": [
+    { "type": "LinearWiggleDisplay", "displayId": "pfal3D7_dnaseq_coverage-LinearWiggleDisplay" }
+  ]
+}
+```
+
+The reader's selection and its order are stored on the display
+(`subtrackSelection`), so they survive a saved session; **Reset to defaults**
+returns to `defaultSubtracks`. Every change refetches the visible regions.
+
 ## Synteny track
 
 A synteny track is a subtrack track whose features are genes from other genomes
@@ -239,6 +287,15 @@ trading for the display's `jexlFilters`, which would cut the fetch at the cost o
 a refetch whenever a lane is added. Not measured.
 
 **The catalog is descriptive, not a whitelist.** See above.
+
+**A hidden multi-wiggle subtrack still costs one header read.** Showing a track
+makes core prewarm its refNames (`CoreGetRefNames`) from the track's own
+adapter config, which lists every subadapter; the display's narrowed config
+does not reach it. Each hidden BigWig is read once for its header and never for
+its index or data. Measured on 50 subtracks over 50 kb: 150 requests with all
+shown, 60 with 5 shown (3 for each shown, 1 for each hidden). Core skips the
+prewarm only for adapter types declaring the `headerLanes` capability, which
+`MultiWiggleAdapter` does not.
 
 [`docs/facet-upstream-gaps.md`](docs/facet-upstream-gaps.md) has the detail and
 the history, including the two gaps upstream has since closed.
