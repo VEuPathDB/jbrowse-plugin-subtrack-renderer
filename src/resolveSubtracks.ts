@@ -18,9 +18,11 @@ export function resetDuplicateWarnings(): void {
  * loudly rather than quietly -- but only once per distinct set of offending
  * labels, since this runs on every recompute.
  */
-export function dedupeCatalog(catalog: Subtrack[]): Subtrack[] {
+export function dedupeCatalog<T extends Pick<Subtrack, 'label'>>(
+  catalog: T[],
+): T[] {
   const seen = new Set<string>()
-  const out: Subtrack[] = []
+  const out: T[] = []
   const duplicates = new Set<string>()
 
   for (const subtrack of catalog) {
